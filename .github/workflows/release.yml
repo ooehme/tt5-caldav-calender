@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate tag and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a semantic version tag such as v1.2.0." >&2
+            exit 1
+          fi
+          grep -F "* Version:           $version" tt5-caldav-calendar.php
+          grep -F "define( 'TT5_CALDAV_VERSION', '$version' );" tt5-caldav-calendar.php
+          grep -F "Stable tag: $version" readme.txt
+
+      - name: Lint and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -type f -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+          php tests/run.php
+          node --check assets/editor.js
+
+      - name: Build installable plugin ZIP
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          package_dir="dist/tt5-caldav-calendar"
+          archive="tt5-caldav-calendar-${version}.zip"
+          mkdir -p "$package_dir"
+          cp -R LICENSE README.md readme.txt tt5-caldav-calendar.php uninstall.php assets blocks includes "$package_dir/"
+          (
+            cd dist
+            zip -qr "../$archive" tt5-caldav-calendar
+          )
+          sha256sum "$archive" > "${archive}.sha256"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" "$ARCHIVE" "${ARCHIVE}.sha256" --verify-tag --generate-notes --title "TT5 CalDAV Kalender ${GITHUB_REF_NAME#v}"

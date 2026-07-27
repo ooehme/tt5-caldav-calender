@@ -4,7 +4,7 @@ Tags: caldav, calendar, gutenberg, block theme, twenty twenty-five
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Plugin URI: https://oliveroehme.de/werkzeuge/tt5-caldav-calender/
@@ -66,6 +66,16 @@ Vorrangig wird die standardisierte CalDAV-Expansion beim Server angefordert. Fal
 Dann kann das gespeicherte Passwort nicht mehr entschlüsselt werden. Das Passwort muss beim betroffenen Kalender erneut eingetragen und gespeichert werden.
 
 == Changelog ==
+
+= 1.2.0 =
+
+* CalDAV-Zugangsdaten bleiben bei Weiterleitungen auf denselben Server beschränkt.
+* Größenlimit für CalDAV-Antworten zum Schutz vor übermäßigem Speicherverbrauch.
+* Wiederholungsregeln mit COUNT, UNTIL und RDATE werden effizienter und korrekt verarbeitet.
+* Abgelaufene Cache-Schlüssel werden automatisch aus dem Cache-Index entfernt.
+* Testen und Löschen von Kalendern verwenden ausschließlich geschützte POST-Anfragen.
+* Editor-Aktualisierungen umgehen den Cache nur noch für die ausdrücklich angeforderte Abfrage.
+* Automatisierte Regressionstests, CI-Prüfungen und reproduzierbare GitHub-Releases.
 
 = 1.1.0 =
 

@@ -60,9 +60,16 @@ final class TT5_CalDAV_Repository {
 			return new WP_Error( 'missing_fields', __( 'Name und Kalender-URL sind erforderlich.', 'tt5-caldav-calendar' ) );
 		}
 
-		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
-		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
-			return new WP_Error( 'invalid_url', __( 'Die Kalender-URL muss HTTP oder HTTPS verwenden.', 'tt5-caldav-calendar' ) );
+		$url_parts = wp_parse_url( $url );
+		$scheme    = is_array( $url_parts ) ? strtolower( (string) ( $url_parts['scheme'] ?? '' ) ) : '';
+		if (
+			! is_array( $url_parts ) ||
+			empty( $url_parts['host'] ) ||
+			! in_array( $scheme, array( 'http', 'https' ), true ) ||
+			isset( $url_parts['user'] ) ||
+			isset( $url_parts['pass'] )
+		) {
+			return new WP_Error( 'invalid_url', __( 'Die Kalender-URL muss eine gültige HTTP- oder HTTPS-Adresse ohne eingebettete Zugangsdaten sein.', 'tt5-caldav-calendar' ) );
 		}
 
 		$timezone = sanitize_text_field( (string) ( $input['timezone'] ?? wp_timezone_string() ) );
@@ -132,13 +139,28 @@ final class TT5_CalDAV_Repository {
 		return $this->crypto->decrypt( $value );
 	}
 
-	public function remember_cache_key( string $key ): void {
-		$keys = get_option( self::CACHE_INDEX, array() );
-		$keys = is_array( $keys ) ? $keys : array();
-		if ( ! in_array( $key, $keys, true ) ) {
-			$keys[] = $key;
-			update_option( self::CACHE_INDEX, $keys, false );
+	public function remember_cache_key( string $key, int $ttl ): void {
+		$stored = get_option( self::CACHE_INDEX, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		$now    = time();
+		$keys   = array();
+
+		foreach ( $stored as $stored_key => $expires_at ) {
+			if ( is_string( $stored_key ) && is_numeric( $expires_at ) ) {
+				if ( (int) $expires_at > $now ) {
+					$keys[ $stored_key ] = (int) $expires_at;
+				}
+				continue;
+			}
+
+			// Migrate the list format used before version 1.2.0.
+			if ( is_string( $expires_at ) && false !== get_transient( $expires_at ) ) {
+				$keys[ $expires_at ] = $now + max( 60, $ttl );
+			}
 		}
+
+		$keys[ $key ] = $now + max( 60, $ttl );
+		update_option( self::CACHE_INDEX, $keys, false );
 	}
 
 
@@ -154,7 +176,8 @@ final class TT5_CalDAV_Repository {
 	public function clear_cache(): void {
 		$keys = get_option( self::CACHE_INDEX, array() );
 		if ( is_array( $keys ) ) {
-			foreach ( $keys as $key ) {
+			foreach ( $keys as $stored_key => $value ) {
+				$key = is_string( $stored_key ) ? $stored_key : $value;
 				delete_transient( (string) $key );
 			}
 		}

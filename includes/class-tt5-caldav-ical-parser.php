@@ -5,6 +5,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class TT5_CalDAV_ICal_Parser {
+	private const MAX_RECURRENCE_CANDIDATES = 12000;
+
 	private const WEEKDAYS = array(
 		'MO' => 1,
 		'TU' => 2,
@@ -248,16 +250,17 @@ final class TT5_CalDAV_ICal_Parser {
 
 		try {
 			if ( $all_day ) {
-				$date = DateTimeImmutable::createFromFormat( '!Ymd', substr( $value, 0, 8 ), $default_timezone );
-				return false === $date ? null : array( 'date' => $date, 'all_day' => true );
+				$date = $this->date_from_format( '!Ymd', substr( $value, 0, 8 ), $default_timezone );
+				return null === $date ? null : array( 'date' => $date, 'all_day' => true );
 			}
 
 			if ( str_ends_with( $value, 'Z' ) ) {
-				$date = DateTimeImmutable::createFromFormat( '!Ymd\THis\Z', $value, new DateTimeZone( 'UTC' ) );
-				if ( false === $date ) {
-					$date = DateTimeImmutable::createFromFormat( '!Ymd\THi\Z', $value, new DateTimeZone( 'UTC' ) );
+				$utc  = new DateTimeZone( 'UTC' );
+				$date = $this->date_from_format( '!Ymd\THis\Z', $value, $utc );
+				if ( null === $date ) {
+					$date = $this->date_from_format( '!Ymd\THi\Z', $value, $utc );
 				}
-				return false === $date ? null : array( 'date' => $date, 'all_day' => false );
+				return null === $date ? null : array( 'date' => $date, 'all_day' => false );
 			}
 
 			$timezone = $default_timezone;
@@ -269,14 +272,27 @@ final class TT5_CalDAV_ICal_Parser {
 				}
 			}
 
-			$date = DateTimeImmutable::createFromFormat( '!Ymd\THis', $value, $timezone );
-			if ( false === $date ) {
-				$date = DateTimeImmutable::createFromFormat( '!Ymd\THi', $value, $timezone );
+			$date = $this->date_from_format( '!Ymd\THis', $value, $timezone );
+			if ( null === $date ) {
+				$date = $this->date_from_format( '!Ymd\THi', $value, $timezone );
 			}
-			return false === $date ? null : array( 'date' => $date, 'all_day' => false );
+			return null === $date ? null : array( 'date' => $date, 'all_day' => false );
 		} catch ( Exception $e ) {
 			return null;
 		}
+	}
+
+	private function date_from_format( string $format, string $value, DateTimeZone $timezone ): ?DateTimeImmutable {
+		$date   = DateTimeImmutable::createFromFormat( $format, $value, $timezone );
+		$errors = DateTimeImmutable::getLastErrors();
+		if (
+			false === $date ||
+			( is_array( $errors ) && ( $errors['warning_count'] > 0 || $errors['error_count'] > 0 ) )
+		) {
+			return null;
+		}
+
+		return $date;
 	}
 
 	/**
@@ -286,7 +302,7 @@ final class TT5_CalDAV_ICal_Parser {
 	private function date_list( array $properties, DateTimeZone $default_timezone ): array {
 		$out = array();
 		foreach ( $properties as $property ) {
-			foreach ( explode( ',', $property['value'] ) as $value ) {
+			foreach ( explode( ',', $property['value'], self::MAX_RECURRENCE_CANDIDATES + 1 ) as $value ) {
 				$item = $this->parse_date_property(
 					array(
 						'value'  => trim( $value ),
@@ -296,6 +312,9 @@ final class TT5_CalDAV_ICal_Parser {
 				);
 				if ( null !== $item ) {
 					$out[] = $item['date']->getTimestamp();
+					if ( count( $out ) >= self::MAX_RECURRENCE_CANDIDATES ) {
+						break 2;
+					}
 				}
 			}
 		}
@@ -330,20 +349,32 @@ final class TT5_CalDAV_ICal_Parser {
 		$duration = max( 0, (int) $master['end'] - (int) $master['start'] );
 		$until    = $this->rrule_until( (string) ( $rule['UNTIL'] ?? '' ), $timezone );
 		$count    = isset( $rule['COUNT'] ) ? max( 1, absint( $rule['COUNT'] ) ) : null;
-		$interval = max( 1, absint( $rule['INTERVAL'] ?? 1 ) );
-		$limit    = 12000;
+		$interval = min( 10000, max( 1, absint( $rule['INTERVAL'] ?? 1 ) ) );
+		$limit    = min( self::MAX_RECURRENCE_CANDIDATES, $count ?? self::MAX_RECURRENCE_CANDIDATES );
 		$seen     = 0;
-		$candidates = array();
+		$period_offset = null === $count
+			? $this->recurrence_period_offset( $start, $range_start, $duration, $interval, (string) $rule['FREQ'] )
+			: 0;
+		$candidates = array( $start );
+		$candidate_budget = self::MAX_RECURRENCE_CANDIDATES - 1;
+		$add_candidate = static function ( DateTimeImmutable $candidate ) use ( &$candidates, &$candidate_budget ): bool {
+			if ( $candidate_budget <= 0 ) {
+				return false;
+			}
+			$candidates[] = $candidate;
+			--$candidate_budget;
+			return true;
+		};
 
 		switch ( strtoupper( (string) $rule['FREQ'] ) ) {
 			case 'DAILY':
-				$current = $start;
-				while ( $limit-- > 0 ) {
-					$candidates[] = $current;
-					$current = $current->modify( '+' . $interval . ' days' );
-					if ( $current->getTimestamp() >= $range_end->getTimestamp() && null === $count && null === $until ) {
+				$current = $start->modify( '+' . ( $period_offset * $interval ) . ' days' );
+				while ( $limit-- > 0 && $candidate_budget > 0 ) {
+					if ( $current >= $range_end || ( null !== $until && $current > $until ) ) {
 						break;
 					}
+					$add_candidate( $current );
+					$current = $current->modify( '+' . $interval . ' days' );
 				}
 				break;
 
@@ -351,71 +382,74 @@ final class TT5_CalDAV_ICal_Parser {
 				$default_day = array_search( (int) $start->format( 'N' ), self::WEEKDAYS, true );
 				$bydays = $this->byday_tokens( (string) ( $rule['BYDAY'] ?? ( $default_day ?: 'MO' ) ) );
 				$week_start = $start->modify( 'monday this week' )->setTime( (int) $start->format( 'H' ), (int) $start->format( 'i' ), (int) $start->format( 's' ) );
-				for ( $week = 0; $limit-- > 0; $week++ ) {
+				for ( $week = $period_offset; $limit-- > 0 && $candidate_budget > 0; $week++ ) {
 					$base = $week_start->modify( '+' . ( $week * $interval ) . ' weeks' );
+					if ( $base >= $range_end || ( null !== $until && $base > $until ) ) {
+						break;
+					}
 					foreach ( $bydays as $token ) {
 						$weekday = self::WEEKDAYS[ $token['day'] ] ?? 1;
 						$candidate = $base->modify( '+' . ( $weekday - 1 ) . ' days' );
 						if ( $candidate >= $start ) {
-							$candidates[] = $candidate;
+							if ( ! $add_candidate( $candidate ) ) {
+								break 2;
+							}
 						}
-					}
-					if ( $base->getTimestamp() >= $range_end->getTimestamp() && null === $count && null === $until ) {
-						break;
 					}
 				}
 				break;
 
 			case 'MONTHLY':
-				for ( $month = 0; $limit-- > 0; $month++ ) {
+				for ( $month = $period_offset; $limit-- > 0 && $candidate_budget > 0; $month++ ) {
 					$base = $start->modify( 'first day of this month' )->modify( '+' . ( $month * $interval ) . ' months' );
+					if ( $base >= $range_end || ( null !== $until && $base > $until ) ) {
+						break;
+					}
 					$month_candidates = $this->monthly_candidates( $base, $start, $rule );
 					foreach ( $month_candidates as $candidate ) {
 						if ( $candidate >= $start ) {
-							$candidates[] = $candidate;
+							if ( ! $add_candidate( $candidate ) ) {
+								break 2;
+							}
 						}
-					}
-					if ( $base->getTimestamp() >= $range_end->getTimestamp() && null === $count && null === $until ) {
-						break;
 					}
 				}
 				break;
 
 			case 'YEARLY':
-				$months = array_map( 'absint', explode( ',', (string) ( $rule['BYMONTH'] ?? $start->format( 'n' ) ) ) );
-				$days   = array_map( 'intval', explode( ',', (string) ( $rule['BYMONTHDAY'] ?? $start->format( 'j' ) ) ) );
-				for ( $year = 0; $limit-- > 0; $year++ ) {
+				$months = array_values( array_unique( array_filter( array_map( 'absint', explode( ',', (string) ( $rule['BYMONTH'] ?? $start->format( 'n' ) ), 13 ) ), static fn( int $month ): bool => $month >= 1 && $month <= 12 ) ) );
+				$days   = array_values( array_unique( array_filter( array_map( 'intval', explode( ',', (string) ( $rule['BYMONTHDAY'] ?? $start->format( 'j' ) ), 63 ) ), static fn( int $day ): bool => 0 !== $day && $day >= -31 && $day <= 31 ) ) );
+				for ( $year = $period_offset; $limit-- > 0 && $candidate_budget > 0; $year++ ) {
 					$year_number = (int) $start->format( 'Y' ) + ( $year * $interval );
+					if ( $year_number > (int) $range_end->format( 'Y' ) || ( null !== $until && $year_number > (int) $until->format( 'Y' ) ) ) {
+						break;
+					}
 					foreach ( $months as $month ) {
 						foreach ( $days as $day ) {
 							$candidate = $this->date_in_month( $year_number, $month, $day, $start );
 							if ( null !== $candidate && $candidate >= $start ) {
-								$candidates[] = $candidate;
+								if ( ! $add_candidate( $candidate ) ) {
+									break 3;
+								}
 							}
 						}
-					}
-					if ( $year_number > (int) $range_end->format( 'Y' ) && null === $count && null === $until ) {
-						break;
 					}
 				}
 				break;
 		}
 
-		foreach ( (array) $master['rdates'] as $timestamp ) {
-			$candidates[] = ( new DateTimeImmutable( '@' . (int) $timestamp ) )->setTimezone( $timezone );
-		}
-
 		usort( $candidates, static fn( DateTimeImmutable $a, DateTimeImmutable $b ): int => $a <=> $b );
 		$exdates = array_flip( array_map( 'strval', (array) $master['exdates'] ) );
-		$out     = array();
-		$unique  = array();
+		$out          = array();
+		$rrule_unique = array();
+		$included     = array();
 
 		foreach ( $candidates as $candidate ) {
 			$timestamp = $candidate->getTimestamp();
-			if ( isset( $unique[ $timestamp ] ) ) {
+			if ( isset( $rrule_unique[ $timestamp ] ) ) {
 				continue;
 			}
-			$unique[ $timestamp ] = true;
+			$rrule_unique[ $timestamp ] = true;
 			++$seen;
 
 			if ( null !== $count && $seen > $count ) {
@@ -438,9 +472,66 @@ final class TT5_CalDAV_ICal_Parser {
 			$event['end']   = $end_timestamp;
 			$event['rrule'] = '';
 			$out[]          = $event;
+			$included[ $timestamp ] = true;
+		}
+
+		foreach ( (array) $master['rdates'] as $timestamp ) {
+			$timestamp = (int) $timestamp;
+			if ( isset( $included[ $timestamp ] ) || isset( $exdates[ (string) $timestamp ] ) ) {
+				continue;
+			}
+			$included[ $timestamp ] = true;
+
+			$end_timestamp = $timestamp + $duration;
+			if ( $end_timestamp <= $range_start->getTimestamp() || $timestamp >= $range_end->getTimestamp() ) {
+				continue;
+			}
+
+			$event          = $master;
+			$event['start'] = $timestamp;
+			$event['end']   = $end_timestamp;
+			$event['rrule'] = '';
+			$out[]          = $event;
 		}
 
 		return $out;
+	}
+
+	private function recurrence_period_offset(
+		DateTimeImmutable $start,
+		DateTimeImmutable $range_start,
+		int $duration,
+		int $interval,
+		string $frequency
+	): int {
+		if ( $start >= $range_start ) {
+			return 0;
+		}
+
+		$target_timestamp = max( $start->getTimestamp(), $range_start->getTimestamp() - $duration );
+		$target           = ( new DateTimeImmutable( '@' . $target_timestamp ) )->setTimezone( $start->getTimezone() );
+		$days             = $start->setTime( 0, 0 )->diff( $target->setTime( 0, 0 ) )->days;
+		$days             = false === $days ? 0 : $days;
+
+		switch ( strtoupper( $frequency ) ) {
+			case 'DAILY':
+				$distance = $days;
+				break;
+			case 'WEEKLY':
+				$distance = intdiv( $days, 7 );
+				break;
+			case 'MONTHLY':
+				$distance = ( (int) $target->format( 'Y' ) - (int) $start->format( 'Y' ) ) * 12
+					+ (int) $target->format( 'n' ) - (int) $start->format( 'n' );
+				break;
+			case 'YEARLY':
+				$distance = (int) $target->format( 'Y' ) - (int) $start->format( 'Y' );
+				break;
+			default:
+				return 0;
+		}
+
+		return max( 0, intdiv( max( 0, $distance ), $interval ) - 1 );
 	}
 
 	/**
@@ -472,12 +563,15 @@ final class TT5_CalDAV_ICal_Parser {
 	 */
 	private function byday_tokens( string $value ): array {
 		$out = array();
-		foreach ( explode( ',', $value ) as $token ) {
+		foreach ( explode( ',', $value, 65 ) as $token ) {
 			if ( preg_match( '/^([+-]?\d+)?(MO|TU|WE|TH|FR|SA|SU)$/', trim( $token ), $matches ) ) {
 				$out[] = array(
 					'ordinal' => isset( $matches[1] ) && '' !== $matches[1] ? (int) $matches[1] : 0,
 					'day'     => $matches[2],
 				);
+				if ( count( $out ) >= 64 ) {
+					break;
+				}
 			}
 		}
 		return $out ?: array( array( 'ordinal' => 0, 'day' => 'MO' ) );
@@ -490,7 +584,10 @@ final class TT5_CalDAV_ICal_Parser {
 	private function monthly_candidates( DateTimeImmutable $base, DateTimeImmutable $start, array $rule ): array {
 		$out = array();
 		if ( ! empty( $rule['BYMONTHDAY'] ) ) {
-			foreach ( array_map( 'intval', explode( ',', $rule['BYMONTHDAY'] ) ) as $day ) {
+			foreach ( array_map( 'intval', explode( ',', $rule['BYMONTHDAY'], 63 ) ) as $day ) {
+				if ( 0 === $day || $day < -31 || $day > 31 ) {
+					continue;
+				}
 				$candidate = $this->date_in_month( (int) $base->format( 'Y' ), (int) $base->format( 'n' ), $day, $start );
 				if ( null !== $candidate ) {
 					$out[] = $candidate;

@@ -5,6 +5,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class TT5_CalDAV_Client {
+	private const MAX_REDIRECTS      = 3;
+	private const MAX_RESPONSE_BYTES = 8 * MB_IN_BYTES;
+
 	public function __construct(
 		private TT5_CalDAV_Repository $repository,
 		private TT5_CalDAV_ICal_Parser $parser
@@ -60,7 +63,7 @@ final class TT5_CalDAV_Client {
 
 		$ttl = max( 60, absint( $calendar['cache_minutes'] ?? 15 ) * MINUTE_IN_SECONDS );
 		set_transient( $cache_key, $events, $ttl );
-		$this->repository->remember_cache_key( $cache_key );
+		$this->repository->remember_cache_key( $cache_key, $ttl );
 		return $events;
 	}
 
@@ -106,7 +109,7 @@ final class TT5_CalDAV_Client {
 		}
 
 		$initial_items = $this->webdav_responses( $initial, $url );
-		$direct = $this->calendar_collections( $initial_items );
+		$direct = $this->calendar_collections( $initial_items, $url );
 		if ( ! empty( $direct ) ) {
 			return $direct;
 		}
@@ -114,10 +117,10 @@ final class TT5_CalDAV_Client {
 		$home_url      = '';
 		$principal_url = '';
 		foreach ( $initial_items as $item ) {
-			if ( '' === $home_url && ! empty( $item['calendar_home'] ) ) {
+			if ( '' === $home_url && ! empty( $item['calendar_home'] ) && $this->same_origin( $url, (string) $item['calendar_home'] ) ) {
 				$home_url = (string) $item['calendar_home'];
 			}
-			if ( '' === $principal_url && ! empty( $item['principal'] ) ) {
+			if ( '' === $principal_url && ! empty( $item['principal'] ) && $this->same_origin( $url, (string) $item['principal'] ) ) {
 				$principal_url = (string) $item['principal'];
 			}
 		}
@@ -126,7 +129,7 @@ final class TT5_CalDAV_Client {
 			$principal = $this->request_credentials( $principal_url, $username, $password, $verify_ssl, 'PROPFIND', $body, '0' );
 			if ( ! is_wp_error( $principal ) ) {
 				foreach ( $this->webdav_responses( $principal, $principal_url ) as $item ) {
-					if ( ! empty( $item['calendar_home'] ) ) {
+					if ( ! empty( $item['calendar_home'] ) && $this->same_origin( $url, (string) $item['calendar_home'] ) ) {
 						$home_url = (string) $item['calendar_home'];
 						break;
 					}
@@ -143,7 +146,7 @@ final class TT5_CalDAV_Client {
 			return $home;
 		}
 
-		$calendars = $this->calendar_collections( $this->webdav_responses( $home, $home_url ) );
+		$calendars = $this->calendar_collections( $this->webdav_responses( $home, $home_url ), $url );
 		if ( empty( $calendars ) ) {
 			return new WP_Error( 'no_calendars_found', __( 'Unter dieser Adresse wurden keine VEVENT-Kalender gefunden. Prüfen Sie Server-/Principal-URL und Zugangsdaten.', 'tt5-caldav-calendar' ) );
 		}
@@ -197,38 +200,75 @@ final class TT5_CalDAV_Client {
 	 * @return string|WP_Error
 	 */
 	private function request_credentials( string $url, string $username, string $password, bool $verify_ssl, string $method, string $body, string $depth ) {
-		$response = wp_remote_request(
-			$url,
-			array(
-				'method'      => $method,
-				'timeout'     => 20,
-				'redirection' => 3,
-				'sslverify'   => $verify_ssl,
-				'headers'     => array(
-					'Authorization' => 'Basic ' . base64_encode( $username . ':' . $password ),
-					'Content-Type'  => 'application/xml; charset=utf-8',
-					'Depth'         => $depth,
-					'User-Agent'    => 'TT5-CalDAV-Calendar/' . TT5_CALDAV_VERSION . '; ' . home_url( '/' ),
-				),
-				'body'        => $body,
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return new WP_Error( 'caldav_transport', $response->get_error_message() );
+		$current_url = $this->validated_request_url( $url );
+		if ( is_wp_error( $current_url ) ) {
+			return $current_url;
 		}
+		$origin_url = $current_url;
 
-		$status = wp_remote_retrieve_response_code( $response );
-		if ( ! in_array( $status, array( 200, 207 ), true ) ) {
-			$message = sprintf(
-				/* translators: %d HTTP status code. */
-				__( 'Der CalDAV-Server antwortete mit HTTP-Status %d.', 'tt5-caldav-calendar' ),
-				$status
+		for ( $redirects = 0; ; ++$redirects ) {
+			$headers = array(
+				'Content-Type' => 'application/xml; charset=utf-8',
+				'Depth'        => $depth,
+				'User-Agent'   => 'TT5-CalDAV-Calendar/' . TT5_CALDAV_VERSION,
 			);
-			return new WP_Error( 'caldav_http_' . $status, $message );
-		}
+			if ( '' !== $username || '' !== $password ) {
+				$headers['Authorization'] = 'Basic ' . base64_encode( $username . ':' . $password );
+			}
 
-		return (string) wp_remote_retrieve_body( $response );
+			$response = wp_remote_request(
+				$current_url,
+				array(
+					'method'              => $method,
+					'timeout'             => 20,
+					'redirection'         => 0,
+					'limit_response_size' => self::MAX_RESPONSE_BYTES,
+					'sslverify'           => $verify_ssl,
+					'headers'             => $headers,
+					'body'                => $body,
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				return new WP_Error( 'caldav_transport', $response->get_error_message() );
+			}
+
+			$status = wp_remote_retrieve_response_code( $response );
+			if ( in_array( $status, array( 301, 302, 303, 307, 308 ), true ) ) {
+				if ( $redirects >= self::MAX_REDIRECTS ) {
+					return new WP_Error( 'caldav_too_many_redirects', __( 'Der CalDAV-Server hat zu oft weitergeleitet.', 'tt5-caldav-calendar' ) );
+				}
+
+				$location = (string) wp_remote_retrieve_header( $response, 'location' );
+				$next_url = $this->validated_request_url( $this->resolve_href( $current_url, $location ) );
+				if ( is_wp_error( $next_url ) ) {
+					return $next_url;
+				}
+				if ( ! $this->same_origin( $origin_url, $next_url ) ) {
+					return new WP_Error( 'caldav_cross_origin_redirect', __( 'Eine Weiterleitung an einen anderen Server wurde zum Schutz der Zugangsdaten blockiert.', 'tt5-caldav-calendar' ) );
+				}
+
+				$current_url = $next_url;
+				continue;
+			}
+
+			if ( ! in_array( $status, array( 200, 207 ), true ) ) {
+				$message = sprintf(
+					/* translators: %d HTTP status code. */
+					__( 'Der CalDAV-Server antwortete mit HTTP-Status %d.', 'tt5-caldav-calendar' ),
+					$status
+				);
+				return new WP_Error( 'caldav_http_' . $status, $message );
+			}
+
+			$response_body = (string) wp_remote_retrieve_body( $response );
+			$content_length = absint( wp_remote_retrieve_header( $response, 'content-length' ) );
+			if ( $content_length > self::MAX_RESPONSE_BYTES || strlen( $response_body ) >= self::MAX_RESPONSE_BYTES ) {
+				return new WP_Error( 'caldav_response_too_large', __( 'Die Antwort des CalDAV-Servers ist zu groß.', 'tt5-caldav-calendar' ) );
+			}
+
+			return $response_body;
+		}
 	}
 
 
@@ -267,13 +307,16 @@ final class TT5_CalDAV_Client {
 	 * @param array<int,array<string,mixed>> $items Parsed WebDAV responses.
 	 * @return array<int,array{name:string,url:string}>
 	 */
-	private function calendar_collections( array $items ): array {
+	private function calendar_collections( array $items, string $allowed_origin ): array {
 		$out = array();
 		foreach ( $items as $item ) {
 			if ( empty( $item['is_calendar'] ) || empty( $item['supports_event'] ) || empty( $item['url'] ) ) {
 				continue;
 			}
 			$url  = (string) $item['url'];
+			if ( ! $this->same_origin( $allowed_origin, $url ) ) {
+				continue;
+			}
 			$name = trim( (string) ( $item['name'] ?? '' ) );
 			if ( '' === $name ) {
 				$path = trim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' );
@@ -337,6 +380,44 @@ final class TT5_CalDAV_Client {
 		$base_path = (string) ( $parts['path'] ?? '/' );
 		$directory = str_ends_with( $base_path, '/' ) ? $base_path : dirname( $base_path ) . '/';
 		return esc_url_raw( $origin . $directory . $href, array( 'http', 'https' ) );
+	}
+
+	/**
+	 * @return string|WP_Error
+	 */
+	private function validated_request_url( string $url ) {
+		$url   = esc_url_raw( trim( $url ), array( 'http', 'https' ) );
+		$parts = wp_parse_url( $url );
+		if (
+			'' === $url ||
+			! is_array( $parts ) ||
+			empty( $parts['scheme'] ) ||
+			empty( $parts['host'] ) ||
+			! in_array( strtolower( (string) $parts['scheme'] ), array( 'http', 'https' ), true ) ||
+			isset( $parts['user'] ) ||
+			isset( $parts['pass'] )
+		) {
+			return new WP_Error( 'invalid_caldav_url', __( 'Die CalDAV-Adresse ist ungültig.', 'tt5-caldav-calendar' ) );
+		}
+
+		return $url;
+	}
+
+	private function same_origin( string $first_url, string $second_url ): bool {
+		$first  = wp_parse_url( $first_url );
+		$second = wp_parse_url( $second_url );
+		if ( ! is_array( $first ) || ! is_array( $second ) || empty( $first['scheme'] ) || empty( $second['scheme'] ) || empty( $first['host'] ) || empty( $second['host'] ) ) {
+			return false;
+		}
+
+		$first_scheme  = strtolower( (string) $first['scheme'] );
+		$second_scheme = strtolower( (string) $second['scheme'] );
+		$first_port    = isset( $first['port'] ) ? (int) $first['port'] : ( 'https' === $first_scheme ? 443 : 80 );
+		$second_port   = isset( $second['port'] ) ? (int) $second['port'] : ( 'https' === $second_scheme ? 443 : 80 );
+
+		return $first_scheme === $second_scheme
+			&& strtolower( (string) $first['host'] ) === strtolower( (string) $second['host'] )
+			&& $first_port === $second_port;
 	}
 
 	/**

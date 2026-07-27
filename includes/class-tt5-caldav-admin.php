@@ -109,8 +109,18 @@ final class TT5_CalDAV_Admin {
 									<td><?php echo esc_html( sprintf( _n( '%d Minute', '%d Minuten', (int) $calendar['cache_minutes'], 'tt5-caldav-calendar' ), (int) $calendar['cache_minutes'] ) ); ?></td>
 									<td class="tt5-caldav-admin__actions">
 										<a class="button button-small" href="<?php echo esc_url( add_query_arg( array( 'page' => 'tt5-caldav', 'edit' => $id ), admin_url( 'options-general.php' ) ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'tt5-caldav-calendar' ); ?></a>
-										<a class="button button-small" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=tt5_caldav_test&id=' . rawurlencode( (string) $id ) ), 'tt5_caldav_test_' . $id ) ); ?>"><?php esc_html_e( 'Testen', 'tt5-caldav-calendar' ); ?></a>
-										<a class="button button-small button-link-delete" data-tt5-confirm="<?php esc_attr_e( 'Diesen Kalender wirklich löschen?', 'tt5-caldav-calendar' ); ?>" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=tt5_caldav_delete&id=' . rawurlencode( (string) $id ) ), 'tt5_caldav_delete_' . $id ) ); ?>"><?php esc_html_e( 'Löschen', 'tt5-caldav-calendar' ); ?></a>
+										<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+											<input type="hidden" name="action" value="tt5_caldav_test">
+											<input type="hidden" name="id" value="<?php echo esc_attr( (string) $id ); ?>">
+											<?php wp_nonce_field( 'tt5_caldav_test_' . $id ); ?>
+											<button class="button button-small" type="submit"><?php esc_html_e( 'Testen', 'tt5-caldav-calendar' ); ?></button>
+										</form>
+										<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-tt5-confirm="<?php esc_attr_e( 'Diesen Kalender wirklich löschen?', 'tt5-caldav-calendar' ); ?>">
+											<input type="hidden" name="action" value="tt5_caldav_delete">
+											<input type="hidden" name="id" value="<?php echo esc_attr( (string) $id ); ?>">
+											<?php wp_nonce_field( 'tt5_caldav_delete_' . $id ); ?>
+											<button class="button button-small button-link-delete" type="submit"><?php esc_html_e( 'Löschen', 'tt5-caldav-calendar' ); ?></button>
+										</form>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -150,9 +160,9 @@ final class TT5_CalDAV_Admin {
 			</div>
 		</div>
 		<style>
-		.tt5-caldav-admin__grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(340px,1fr);gap:24px;align-items:start}.tt5-caldav-admin__panel{background:#fff;border:1px solid #c3c4c7;padding:20px;margin-block-end:24px}.tt5-caldav-admin__panel h2{margin-top:0}.tt5-caldav-admin__actions{display:flex;gap:6px;flex-wrap:wrap}.tt5-caldav-admin__cache-form{margin-top:16px}.tt5-caldav-admin code{word-break:break-all}.tt5-caldav-admin__discover-credentials{display:flex;gap:24px;flex-wrap:wrap}.tt5-caldav-admin__discovery table{margin-top:12px}@media(max-width:1000px){.tt5-caldav-admin__grid{grid-template-columns:1fr}}
+		.tt5-caldav-admin__grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(340px,1fr);gap:24px;align-items:start}.tt5-caldav-admin__panel{background:#fff;border:1px solid #c3c4c7;padding:20px;margin-block-end:24px}.tt5-caldav-admin__panel h2{margin-top:0}.tt5-caldav-admin__actions{display:flex;gap:6px;flex-wrap:wrap}.tt5-caldav-admin__actions form{display:inline}.tt5-caldav-admin__cache-form{margin-top:16px}.tt5-caldav-admin code{word-break:break-all}.tt5-caldav-admin__discover-credentials{display:flex;gap:24px;flex-wrap:wrap}.tt5-caldav-admin__discovery table{margin-top:12px}@media(max-width:1000px){.tt5-caldav-admin__grid{grid-template-columns:1fr}}
 		</style>
-		<script>document.addEventListener('click',function(e){var a=e.target.closest('[data-tt5-confirm]');if(a&&!window.confirm(a.getAttribute('data-tt5-confirm'))){e.preventDefault();}});</script>
+		<script>document.addEventListener('submit',function(e){var form=e.target.closest('[data-tt5-confirm]');if(form&&!window.confirm(form.getAttribute('data-tt5-confirm'))){e.preventDefault();}});</script>
 		<?php
 	}
 
@@ -260,7 +270,7 @@ final class TT5_CalDAV_Admin {
 
 	public function delete(): void {
 		$this->guard();
-		$id = isset( $_GET['id'] ) ? sanitize_key( wp_unslash( $_GET['id'] ) ) : '';
+		$id = isset( $_POST['id'] ) ? sanitize_key( wp_unslash( $_POST['id'] ) ) : '';
 		check_admin_referer( 'tt5_caldav_delete_' . $id );
 		$this->repository->delete( $id );
 		$this->redirect( 'success', __( 'Kalender gelöscht.', 'tt5-caldav-calendar' ) );
@@ -268,7 +278,7 @@ final class TT5_CalDAV_Admin {
 
 	public function test(): void {
 		$this->guard();
-		$id = isset( $_GET['id'] ) ? sanitize_key( wp_unslash( $_GET['id'] ) ) : '';
+		$id = isset( $_POST['id'] ) ? sanitize_key( wp_unslash( $_POST['id'] ) ) : '';
 		check_admin_referer( 'tt5_caldav_test_' . $id );
 		$result = $this->client->test( $id );
 		if ( is_wp_error( $result ) ) {

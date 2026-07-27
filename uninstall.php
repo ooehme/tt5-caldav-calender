@@ -10,7 +10,8 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 $cleanup = static function (): void {
 	$keys = get_option( 'tt5_caldav_cache_keys', array() );
 	if ( is_array( $keys ) ) {
-		foreach ( $keys as $key ) {
+		foreach ( $keys as $stored_key => $value ) {
+			$key = is_string( $stored_key ) ? $stored_key : $value;
 			delete_transient( (string) $key );
 		}
 	}

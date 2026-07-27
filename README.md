@@ -25,3 +25,9 @@ Im Editor ist jeweils ein echter Termin direkt bearbeitbar. Weitere Termine werd
 ## Datenschutz und Sicherheit
 
 Der Browser erhält weder Benutzername noch Passwort. CalDAV-Anfragen laufen serverseitig. Passwörter werden authentifiziert verschlüsselt gespeichert. Die Editor-REST-Routen sind auf angemeldete Benutzer mit `edit_posts` beschränkt; Kontenänderungen erfordern `manage_options` und Nonces.
+
+Weiterleitungen und automatisch ermittelte CalDAV-Endpunkte dürfen den ursprünglichen Server nicht verlassen. Serverantworten sind auf 8 MiB begrenzt.
+
+## Releases
+
+Installierbare ZIP-Dateien und SHA-256-Prüfsummen werden für Versions-Tags automatisch unter [GitHub Releases](https://github.com/ooehme/tt5-caldav-calender/releases) erzeugt.

@@ -211,6 +211,7 @@
 		var refreshState = useState(0);
 		var refreshKey = refreshState[0];
 		var setRefreshKey = refreshState[1];
+		var forceRefresh = useRef(false);
 		var migrationDone = useRef(false);
 		var directBlocks = useSelect(function (select) {
 			return select('core/block-editor').getBlocks(clientId);
@@ -288,11 +289,13 @@
 			}
 			setEventsLoading(true);
 			setError('');
+			var refreshRequested = forceRefresh.current;
+			forceRefresh.current = false;
 			var path = '/tt5-caldav/v1/events?calendar_id=' + encodeURIComponent(calendarId) +
 				'&days=' + encodeURIComponent(days) +
 				'&offset=' + encodeURIComponent(offsetDays) +
 				'&limit=' + encodeURIComponent(maxEvents) +
-				(refreshKey ? '&refresh=true' : '');
+				(refreshRequested ? '&refresh=true' : '');
 			apiFetch({ path: path }).then(function (items) {
 				if (!active) {
 					return;
@@ -361,7 +364,10 @@
 				}),
 				el(Button, {
 					variant: 'secondary',
-					onClick: function () { setRefreshKey(refreshKey + 1); },
+					onClick: function () {
+						forceRefresh.current = true;
+						setRefreshKey(function (value) { return value + 1; });
+					},
 					disabled: !calendarId || eventsLoading
 				}, __('Vorschau aktualisieren', 'tt5-caldav-calendar')),
 				el('p', {}, el('a', {

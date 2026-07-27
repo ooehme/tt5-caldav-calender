@@ -2,7 +2,8 @@
 
 Installierbares WordPress-Plugin für zentrale CalDAV-Abonnements und eine frei gestaltbare, blockbasierte Terminschleife.
 
-**Autor:** [Oliver Oehme](https://oliveroehme.de/)  
+**Autor:** [Oliver Oehme](https://oliveroehme.de/)
+
 **Projektseite:** [oliveroehme.de/werkzeuge/tt5-caldav-calender](https://oliveroehme.de/werkzeuge/tt5-caldav-calender/)
 
 ## Anforderungen

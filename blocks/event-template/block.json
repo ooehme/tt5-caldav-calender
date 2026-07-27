@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "tt5-caldav/event-template",
+  "version": "1.1.0",
+  "title": "Termin-Vorlage",
+  "category": "tt5-caldav",
+  "icon": "screenoptions",
+  "description": "Wiederholt die enthaltenen Blöcke für jeden gefundenen CalDAV-Termin.",
+  "parent": [
+    "tt5-caldav/calendar-loop"
+  ],
+  "usesContext": [
+    "tt5-caldav/events",
+    "tt5-caldav/loading",
+    "tt5-caldav/error",
+    "tt5-caldav/previewCount"
+  ],
+  "textdomain": "tt5-caldav-calendar",
+  "attributes": {
+    "layout": {
+      "type": "object",
+      "default": {
+        "type": "grid",
+        "columnCount": 1
+      }
+    }
+  },
+  "supports": {
+    "html": false,
+    "color": {
+      "background": true,
+      "text": true,
+      "link": true,
+      "gradients": true
+    },
+    "spacing": {
+      "margin": true,
+      "padding": true,
+      "blockGap": true
+    },
+    "typography": {
+      "fontSize": true,
+      "lineHeight": true,
+      "fontFamily": true,
+      "fontWeight": true,
+      "fontStyle": true,
+      "letterSpacing": true,
+      "textTransform": true,
+      "textDecoration": true
+    },
+    "layout": {
+      "allowSwitching": true,
+      "allowInheriting": true
+    },
+    "border": {
+      "color": true,
+      "radius": true,
+      "style": true,
+      "width": true
+    }
+  },
+  "editorScript": "tt5-caldav-editor",
+  "style": "tt5-caldav-style",
+  "editorStyle": "tt5-caldav-editor-style"
+}

@@ -1,0 +1,59 @@
+.wp-block-tt5-caldav-calendar-loop.tt5-caldav-loop,
+.wp-block-tt5-caldav-event-template.tt5-caldav-loop__items {
+	box-sizing: border-box;
+}
+
+.tt5-caldav-loop__items--legacy {
+	display: grid;
+	gap: var(--wp--style--block-gap, 1.5rem);
+}
+
+.tt5-caldav-event {
+	box-sizing: border-box;
+	min-width: 0;
+}
+
+.tt5-caldav-event > :first-child {
+	margin-block-start: 0;
+}
+
+.tt5-caldav-event > :last-child {
+	margin-block-end: 0;
+}
+
+.tt5-caldav-event__title,
+.tt5-caldav-event__date,
+.tt5-caldav-event__time,
+.tt5-caldav-event__location,
+.tt5-caldav-event__description,
+.tt5-caldav-event__link {
+	box-sizing: border-box;
+}
+
+.tt5-caldav-event__title {
+	margin-block-end: 0.35em;
+}
+
+.tt5-caldav-event__date,
+.tt5-caldav-event__time,
+.tt5-caldav-event__location {
+	margin-block: 0.2em;
+}
+
+.wp-block-tt5-caldav-calendar-loop.is-style-compact .tt5-caldav-loop__items {
+	gap: calc(var(--wp--style--block-gap, 1.5rem) / 2);
+}
+
+.wp-block-tt5-caldav-calendar-loop.is-style-compact .tt5-caldav-event {
+	padding-block: calc(var(--wp--style--block-gap, 1.5rem) / 2);
+	border-block-end: 1px solid currentColor;
+}
+
+.wp-block-tt5-caldav-calendar-loop.is-style-cards .tt5-caldav-loop__items {
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.wp-block-tt5-caldav-calendar-loop.is-style-cards .tt5-caldav-event {
+	padding: var(--wp--preset--spacing--40, 1.25rem);
+	border: 1px solid currentColor;
+}

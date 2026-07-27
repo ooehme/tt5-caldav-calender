@@ -1,0 +1,25 @@
+.wp-block-tt5-caldav-calendar-loop .tt5-caldav-editor__loading {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-height: 3rem;
+}
+
+.editor-styles-wrapper .wp-block-tt5-caldav-event-template .tt5-caldav-event,
+.editor-styles-wrapper .wp-block-tt5-caldav-calendar-loop .tt5-caldav-event {
+	min-width: 0;
+}
+
+.editor-styles-wrapper .wp-block-tt5-caldav-event-template > .tt5-caldav-event[role="button"] {
+	cursor: pointer;
+}
+
+.editor-styles-wrapper .wp-block-tt5-caldav-event-template > .tt5-caldav-event[role="button"]:focus {
+	outline: 2px solid var(--wp-admin-theme-color, currentColor);
+	outline-offset: 2px;
+}
+
+.tt5-caldav-editor__empty-field {
+	opacity: 0.65;
+	font-style: italic;
+}

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "tt5-caldav/event-time",
+  "version": "1.1.0",
+  "title": "Terminzeit",
+  "category": "tt5-caldav",
+  "icon": "clock",
+  "ancestor": [
+    "tt5-caldav/calendar-loop"
+  ],
+  "textdomain": "tt5-caldav-calendar",
+  "attributes": {
+    "format": {
+      "type": "string",
+      "default": "H:i"
+    },
+    "separator": {
+      "type": "string",
+      "default": " – "
+    },
+    "prefix": {
+      "type": "string",
+      "default": ""
+    },
+    "hideAllDay": {
+      "type": "boolean",
+      "default": false
+    },
+    "allDayLabel": {
+      "type": "string",
+      "default": "Ganztägig"
+    }
+  },
+  "supports": {
+    "html": false,
+    "color": {
+      "text": true
+    },
+    "spacing": {
+      "margin": true,
+      "padding": true
+    },
+    "typography": {
+      "fontSize": true,
+      "lineHeight": true,
+      "fontFamily": true,
+      "fontWeight": true,
+      "fontStyle": true,
+      "letterSpacing": true,
+      "textTransform": true,
+      "textDecoration": true
+    },
+    "border": {
+      "color": true,
+      "radius": true,
+      "style": true,
+      "width": true
+    }
+  },
+  "editorScript": "tt5-caldav-editor",
+  "style": "tt5-caldav-style",
+  "editorStyle": "tt5-caldav-editor-style",
+  "usesContext": [
+    "tt5-caldav/event"
+  ]
+}

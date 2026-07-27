@@ -1,0 +1,83 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "tt5-caldav/calendar-loop",
+  "version": "1.1.0",
+  "title": "CalDAV-Terminschleife",
+  "category": "tt5-caldav",
+  "icon": "calendar-alt",
+  "description": "Fragt einen zentral eingerichteten CalDAV-Kalender ab und enthält eine frei gestaltbare Termin-Vorlage.",
+  "textdomain": "tt5-caldav-calendar",
+  "attributes": {
+    "calendarId": {
+      "type": "string",
+      "default": ""
+    },
+    "days": {
+      "type": "integer",
+      "default": 30
+    },
+    "offsetDays": {
+      "type": "integer",
+      "default": 0
+    },
+    "maxEvents": {
+      "type": "integer",
+      "default": 20
+    },
+    "emptyMessage": {
+      "type": "string",
+      "default": "Keine Termine im gewählten Zeitraum."
+    },
+    "editorMode": {
+      "type": "string",
+      "default": "template"
+    },
+    "editorPreviewCount": {
+      "type": "integer",
+      "default": 3
+    }
+  },
+  "supports": {
+    "align": [
+      "wide",
+      "full"
+    ],
+    "anchor": true,
+    "html": false,
+    "color": {
+      "background": true,
+      "text": true,
+      "link": true,
+      "gradients": true
+    },
+    "spacing": {
+      "margin": true,
+      "padding": true,
+      "blockGap": true
+    },
+    "typography": {
+      "fontSize": true,
+      "lineHeight": true,
+      "fontFamily": true,
+      "fontWeight": true,
+      "fontStyle": true,
+      "letterSpacing": true,
+      "textTransform": true,
+      "textDecoration": true
+    },
+    "layout": {
+      "allowSwitching": true,
+      "allowInheriting": true
+    },
+    "border": {
+      "color": true,
+      "radius": true,
+      "style": true,
+      "width": true
+    }
+  },
+  "editorScript": "tt5-caldav-editor",
+  "style": "tt5-caldav-style",
+  "editorStyle": "tt5-caldav-editor-style"
+}

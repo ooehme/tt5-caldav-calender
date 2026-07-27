@@ -64,8 +64,9 @@
 		['tt5-caldav/event-location', {}]
 	];
 
+	// Lock only the direct template block. Its freely editable children are initialized separately.
 	var loopTemplate = [
-		['tt5-caldav/event-template', { layout: { type: 'grid', columnCount: 1 } }, eventFieldsTemplate]
+		['tt5-caldav/event-template', { layout: { type: 'grid', columnCount: 1 } }]
 	];
 
 	function makeSampleEvent() {
@@ -476,6 +477,7 @@
 		var innerBlocksProps = useInnerBlocksProps(
 			{ className: 'tt5-caldav-event' },
 			{
+				template: eventFieldsTemplate,
 				templateLock: false,
 				__unstableDisableLayoutClassNames: true
 			}

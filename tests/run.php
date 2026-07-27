@@ -5,7 +5,7 @@ declare(strict_types=1);
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MB_IN_BYTES', 1048576 );
 define( 'MINUTE_IN_SECONDS', 60 );
-define( 'TT5_CALDAV_VERSION', '1.2.2' );
+define( 'TT5_CALDAV_VERSION', '1.2.3' );
 
 final class WP_Error {
 	public function __construct(
@@ -83,6 +83,7 @@ final class TT5_Test_Runner {
 
 	public function run(): void {
 		$this->test_version_consistency();
+		$this->test_editor_template_defaults_are_not_outer_locked();
 		$this->test_timezone_manual_offsets();
 		$this->test_simple_event();
 		$this->test_invalid_date_is_rejected();
@@ -94,6 +95,20 @@ final class TT5_Test_Runner {
 		$this->test_oversized_response_is_blocked();
 
 		echo "OK ({$this->assertions} assertions)\n";
+	}
+
+	private function test_editor_template_defaults_are_not_outer_locked(): void {
+		$editor = (string) file_get_contents( dirname( __DIR__ ) . '/assets/editor.js' );
+
+		$this->true(
+			! str_contains( $editor, "columnCount: 1 } }, eventFieldsTemplate]" ),
+			'Loop template must not constrain the custom event template structure'
+		);
+		$this->same(
+			1,
+			substr_count( $editor, 'template: eventFieldsTemplate' ),
+			'Defaults are initialized only by the event template'
+		);
 	}
 
 	private function test_timezone_manual_offsets(): void {

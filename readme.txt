@@ -4,7 +4,7 @@ Tags: caldav, calendar, gutenberg, block theme, twenty twenty-five
 Requires at least: 6.7
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.2
+Stable tag: 1.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Plugin URI: https://oliveroehme.de/werkzeuge/tt5-caldav-calender/
@@ -66,6 +66,10 @@ Vorrangig wird die standardisierte CalDAV-Expansion beim Server angefordert. Fal
 Dann kann das gespeicherte Passwort nicht mehr entschlüsselt werden. Das Passwort muss beim betroffenen Kalender erneut eingetragen und gespeichert werden.
 
 == Changelog ==
+
+= 1.2.3 =
+
+* Die Sperre des Schleifenblocks umfasst nur noch den direkten Termin-Vorlagenblock und ersetzt keine individuell verschachtelten Inhalte.
 
 = 1.2.2 =
 

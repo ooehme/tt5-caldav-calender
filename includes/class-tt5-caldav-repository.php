@@ -72,10 +72,10 @@ final class TT5_CalDAV_Repository {
 			return new WP_Error( 'invalid_url', __( 'Die Kalender-URL muss eine gültige HTTP- oder HTTPS-Adresse ohne eingebettete Zugangsdaten sein.', 'tt5-caldav-calendar' ) );
 		}
 
-		$timezone = sanitize_text_field( (string) ( $input['timezone'] ?? wp_timezone_string() ) );
-		if ( ! in_array( $timezone, timezone_identifiers_list(), true ) ) {
-			$timezone = wp_timezone_string();
-		}
+		$timezone = TT5_CalDAV_Timezone::normalize(
+			sanitize_text_field( (string) ( $input['timezone'] ?? wp_timezone_string() ) ),
+			wp_timezone_string()
+		);
 
 		$cache_minutes = min( 1440, max( 1, absint( $input['cache_minutes'] ?? 15 ) ) );
 		$verify_ssl    = ! empty( $input['verify_ssl'] );

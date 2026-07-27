@@ -33,6 +33,7 @@ final class TT5_CalDAV_Plugin {
 
 	private function load_dependencies(): void {
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-crypto.php';
+		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-timezone.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-repository.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-ical-parser.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-client.php';

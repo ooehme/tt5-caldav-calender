@@ -5,7 +5,7 @@ declare(strict_types=1);
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MB_IN_BYTES', 1048576 );
 define( 'MINUTE_IN_SECONDS', 60 );
-define( 'TT5_CALDAV_VERSION', '1.2.0' );
+define( 'TT5_CALDAV_VERSION', '1.2.1' );
 
 final class WP_Error {
 	public function __construct(
@@ -76,12 +76,14 @@ final class TT5_CalDAV_Repository {}
 
 require_once dirname( __DIR__ ) . '/includes/class-tt5-caldav-ical-parser.php';
 require_once dirname( __DIR__ ) . '/includes/class-tt5-caldav-client.php';
+require_once dirname( __DIR__ ) . '/includes/class-tt5-caldav-timezone.php';
 
 final class TT5_Test_Runner {
 	private int $assertions = 0;
 
 	public function run(): void {
 		$this->test_version_consistency();
+		$this->test_timezone_manual_offsets();
 		$this->test_simple_event();
 		$this->test_invalid_date_is_rejected();
 		$this->test_rdate_does_not_consume_count();
@@ -92,6 +94,15 @@ final class TT5_Test_Runner {
 		$this->test_oversized_response_is_blocked();
 
 		echo "OK ({$this->assertions} assertions)\n";
+	}
+
+	private function test_timezone_manual_offsets(): void {
+		$this->same( '+02:00', TT5_CalDAV_Timezone::normalize( '+2', 'UTC' ), 'Positive manual timezone offset' );
+		$this->same( '-05:30', TT5_CalDAV_Timezone::normalize( '-5.5', 'UTC' ), 'Negative manual timezone offset' );
+		$this->same( 'Europe/Berlin', TT5_CalDAV_Timezone::normalize( 'Europe/Berlin', 'UTC' ), 'Named timezone' );
+		$this->same( 'UTC', TT5_CalDAV_Timezone::normalize( 'invalid', 'UTC' ), 'Invalid timezone fallback' );
+		$this->same( '+2', TT5_CalDAV_Timezone::choice_value( '+02:00' ), 'Positive offset choice value' );
+		$this->same( '-5.5', TT5_CalDAV_Timezone::choice_value( '-05:30' ), 'Negative offset choice value' );
 	}
 
 	private function test_version_consistency(): void {

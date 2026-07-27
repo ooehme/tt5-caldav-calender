@@ -419,18 +419,6 @@
 		);
 	}
 
-	function EventTemplateInnerBlocks() {
-		var innerBlocksProps = useInnerBlocksProps(
-			{ className: 'tt5-caldav-event' },
-			{
-				template: eventFieldsTemplate,
-				templateLock: false,
-				__unstableDisableLayoutClassNames: true
-			}
-		);
-		return el('article', innerBlocksProps);
-	}
-
 	function EventTemplateBlockPreview(props) {
 		var blockPreviewProps = useBlockPreview({
 			blocks: props.blocks,
@@ -485,6 +473,13 @@
 		var blockProps = useBlockProps({
 			className: joinClasses('tt5-caldav-loop__items', props.__unstableLayoutClassNames)
 		});
+		var innerBlocksProps = useInnerBlocksProps(
+			{ className: 'tt5-caldav-event' },
+			{
+				templateLock: false,
+				__unstableDisableLayoutClassNames: true
+			}
+		);
 
 		return el(Fragment, {},
 			el(InspectorControls, {},
@@ -498,7 +493,7 @@
 					eventContext[EVENT_CONTEXT] = blockContext.event;
 					var isActive = blockContext.id === selectedId;
 					return el(BlockContextProvider, { key: blockContext.id, value: eventContext },
-						isActive ? el(EventTemplateInnerBlocks) : null,
+						isActive ? el('article', innerBlocksProps) : null,
 						el(EventTemplateBlockPreview, {
 							blocks: blocks,
 							eventId: blockContext.id,

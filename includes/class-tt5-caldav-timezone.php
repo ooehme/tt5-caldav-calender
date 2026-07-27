@@ -11,7 +11,7 @@ final class TT5_CalDAV_Timezone {
 		try {
 			new DateTimeZone( $value );
 			return $value;
-		} catch ( Exception $e ) {
+		} catch ( Throwable $e ) {
 			return self::valid_fallback( $fallback );
 		}
 	}
@@ -53,7 +53,7 @@ final class TT5_CalDAV_Timezone {
 		try {
 			new DateTimeZone( $fallback );
 			return $fallback;
-		} catch ( Exception $e ) {
+		} catch ( Throwable $e ) {
 			return 'UTC';
 		}
 	}

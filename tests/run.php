@@ -5,7 +5,7 @@ declare(strict_types=1);
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MB_IN_BYTES', 1048576 );
 define( 'MINUTE_IN_SECONDS', 60 );
-define( 'TT5_CALDAV_VERSION', '1.2.3' );
+define( 'TT5_CALDAV_VERSION', '1.2.4' );
 
 final class WP_Error {
 	public function __construct(

@@ -2,7 +2,7 @@
   "$schema": "https://schemas.wp.org/trunk/block.json",
   "apiVersion": 3,
   "name": "tt5-caldav/event-location",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "title": "Terminort",
   "category": "tt5-caldav",
   "icon": "location",

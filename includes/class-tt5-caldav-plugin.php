@@ -26,7 +26,7 @@ final class TT5_CalDAV_Plugin {
 		( new TT5_CalDAV_Updater() )->register();
 		( new TT5_CalDAV_Admin( $this->repository, $this->client ) )->register();
 		( new TT5_CalDAV_REST( $this->repository, $this->client ) )->register();
-		( new TT5_CalDAV_Blocks( $this->repository, $this->client ) )->register();
+		( new TT5_CalDAV_Blocks( $this->client ) )->register();
 
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( TT5_CALDAV_FILE ), array( $this, 'action_links' ) );
@@ -37,10 +37,16 @@ final class TT5_CalDAV_Plugin {
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-crypto.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-timezone.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-repository.php';
+		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-recurrence.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-ical-parser.php';
+		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-http-client.php';
+		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-webdav-parser.php';
+		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-discovery.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-client.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-admin.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-rest.php';
+		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-block-renderer.php';
+		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-block-patterns.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-blocks.php';
 	}
 

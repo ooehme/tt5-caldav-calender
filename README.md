@@ -1,10 +1,21 @@
 # TT5 CalDAV Kalender
 
-Installierbares WordPress-Plugin für zentrale CalDAV-Abonnements und eine frei gestaltbare, blockbasierte Terminschleife.
+[![Quality](https://github.com/ooehme/tt5-caldav-calender/actions/workflows/quality.yml/badge.svg)](https://github.com/ooehme/tt5-caldav-calender/actions/workflows/quality.yml)
+[![Release](https://img.shields.io/github/v/release/ooehme/tt5-caldav-calender)](https://github.com/ooehme/tt5-caldav-calender/releases)
+[![License](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
 
-**Autor:** [Oliver Oehme](https://oliveroehme.de/)
+Serverseitige CalDAV-Abonnements und frei gestaltbare, dynamische Terminblöcke für WordPress.
 
-**Projektseite:** [oliveroehme.de/werkzeuge/tt5-caldav-calender](https://oliveroehme.de/werkzeuge/tt5-caldav-calender/)
+## Funktionen
+
+- CalDAV-Server, Principals und Calendar Homes automatisch durchsuchen
+- mehrere Kalender zentral und verschlüsselt verwalten
+- Termine ausschließlich serverseitig abrufen und zwischenspeichern
+- Terminlisten mit nativen WordPress-Blöcken frei gestalten
+- wiederkehrende Termine, Ausnahmen und ganztägige Termine verarbeiten
+- Zeitzone und Zeitkorrektur pro Kalender konfigurieren
+- sichere Same-Origin-Weiterleitungen und begrenzte Antwortgrößen
+- Updates über signierte GitHub-Releases in WordPress bereitstellen
 
 ## Anforderungen
 
@@ -14,22 +25,34 @@ Installierbares WordPress-Plugin für zentrale CalDAV-Abonnements und eine frei 
 
 ## Installation
 
-Die ZIP-Datei über **Plugins → Installieren → Plugin hochladen** installieren. Danach unter **Einstellungen → CalDAV-Kalender** eine Server- oder Principal-URL prüfen, verfügbare Kalender automatisch ermitteln und abonnieren. Direkte Kalender-Collection-URLs können weiterhin manuell eingetragen werden. Fehlerhaft verschobene Uhrzeiten lassen sich dort mit einer Zeitkorrektur je Kalender ausgleichen.
+1. Die aktuelle ZIP-Datei unter [Releases](https://github.com/ooehme/tt5-caldav-calender/releases) herunterladen.
+2. In WordPress unter **Plugins → Installieren → Plugin hochladen** installieren.
+3. Unter **Einstellungen → CalDAV-Kalender** ein Konto einrichten.
+4. Im Block-Editor den Block **CalDAV-Terminschleife** einfügen und gestalten.
+
+Direkte Calendar-Collection-URLs können alternativ manuell eingetragen werden.
 
 ## Blockaufbau
 
-Der Block **CalDAV-Terminschleife** enthält genau eine **Termin-Vorlage**. Alle Blöcke innerhalb dieser Vorlage werden für jeden gefundenen Termin wiederholt. Neben Termintitel, Datum, Zeit, Ort, Beschreibung und Link können normale WordPress-Blöcke wie Gruppe, Zeile, Stapel, Spalten, Überschrift, Absatz, Trennlinie oder Abstandshalter frei eingesetzt werden.
+Die **CalDAV-Terminschleife** enthält genau eine **Termin-Vorlage**. Deren innere Blöcke werden für jeden Termin wiederholt. Verfügbar sind Titel, Datum, Zeit, Ort, Beschreibung und Link; normale WordPress-Blöcke können beliebig kombiniert werden.
 
-Im Editor ist jeweils ein echter Termin direkt bearbeitbar. Weitere Termine werden wie bei der WordPress-Abfrageschleife als Vorschau angezeigt und können per Klick zum aktiven Bearbeitungstermin gemacht werden. Bestehende Blöcke aus Version 1.0 werden beim Bearbeiten automatisch in eine Termin-Vorlage übernommen.
+Im Editor ist ein Termin direkt bearbeitbar. Weitere Termine erscheinen als Vorschau und können per Klick aktiviert werden. Inhalte aus Plugin-Version 1.0 werden beim Bearbeiten automatisch migriert.
 
-## Datenschutz und Sicherheit
+## Entwicklung
 
-Der Browser erhält weder Benutzername noch Passwort. CalDAV-Anfragen laufen serverseitig. Passwörter werden authentifiziert verschlüsselt gespeichert. Die Editor-REST-Routen sind auf angemeldete Benutzer mit `edit_posts` beschränkt; Kontenänderungen erfordern `manage_options` und Nonces.
+```bash
+find . -type f -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+php tests/run.php
+find assets -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+node tests/editor.test.cjs
+```
 
-Weiterleitungen und automatisch ermittelte CalDAV-Endpunkte dürfen den ursprünglichen Server nicht verlassen. Serverantworten sind auf 8 MiB begrenzt.
+Die CI führt diese Prüfungen unter der minimal unterstützten und einer aktuellen PHP-Version aus. Details zu Komponenten und Sicherheitsgrenzen stehen in der [Architekturdokumentation](docs/architecture.md). Hinweise für Beiträge enthält [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Releases
+## Sicherheit
 
-Installierte Versionen ab 1.2.5 erkennen neue veröffentlichte Releases über die WordPress-Updateverwaltung. Ab 1.2.6 lassen sich automatische Aktualisierungen in der Pluginübersicht regulär aktivieren und deaktivieren.
+Zugangsdaten und Kalenderinhalte werden nicht an den Browser ausgeliefert. Passwörter werden authentifiziert verschlüsselt gespeichert. Sicherheitsprobleme bitte gemäß [SECURITY.md](SECURITY.md) privat melden.
 
-Installierbare ZIP-Dateien und SHA-256-Prüfsummen werden für Versions-Tags automatisch unter [GitHub Releases](https://github.com/ooehme/tt5-caldav-calender/releases) erzeugt.
+## Lizenz
+
+GPL-2.0-or-later. Siehe [LICENSE](LICENSE).

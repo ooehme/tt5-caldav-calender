@@ -20,6 +20,13 @@ jobs:
       - name: Check out tagged source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: none
+
       - name: Validate tag and source
         shell: bash
         run: |
@@ -39,7 +46,8 @@ jobs:
           set -euo pipefail
           find . -type f -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
           php tests/run.php
-          node --check assets/editor.js
+          find assets -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          node tests/editor.test.cjs
 
       - name: Build installable plugin ZIP
         id: package

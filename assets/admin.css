@@ -1,0 +1,51 @@
+.tt5-caldav-admin__grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.4fr) minmax(340px, 1fr);
+	gap: 24px;
+	align-items: start;
+}
+
+.tt5-caldav-admin__panel {
+	padding: 20px;
+	margin-block-end: 24px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+}
+
+.tt5-caldav-admin__panel h2 {
+	margin-top: 0;
+}
+
+.tt5-caldav-admin__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.tt5-caldav-admin__actions form {
+	display: inline;
+}
+
+.tt5-caldav-admin__cache-form {
+	margin-top: 16px;
+}
+
+.tt5-caldav-admin code {
+	word-break: break-all;
+}
+
+.tt5-caldav-admin__discover-credentials {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+}
+
+.tt5-caldav-admin__discovery table {
+	margin-top: 12px;
+}
+
+@media (max-width: 1000px) {
+	.tt5-caldav-admin__grid {
+		grid-template-columns: 1fr;
+	}
+}

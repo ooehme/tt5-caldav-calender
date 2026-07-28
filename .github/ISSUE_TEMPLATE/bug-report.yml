@@ -1,0 +1,40 @@
+name: Fehlerbericht
+description: Reproduzierbares Problem im Plugin melden
+title: '[Bug] '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Keine Zugangsdaten, privaten Kalender-URLs oder echten Kalenderdaten veröffentlichen.
+  - type: input
+    id: version
+    attributes:
+      label: Plugin-Version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Umgebung
+      description: WordPress-, PHP- und Browser-Version
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Reproduzieren
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Erwartetes Verhalten
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Tatsächliches Verhalten
+    validations:
+      required: true

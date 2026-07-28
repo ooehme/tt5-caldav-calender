@@ -11,7 +11,6 @@ final class TT5_CalDAV_Updater {
 
 	public function register(): void {
 		add_filter( 'update_plugins_github.com', array( $this, 'filter_update' ), 10, 4 );
-		add_filter( 'auto_update_plugin', array( $this, 'enable_auto_update' ), 10, 2 );
 	}
 
 	/**
@@ -41,10 +40,6 @@ final class TT5_CalDAV_Updater {
 		}
 
 		$version = $matches[1];
-		if ( ! version_compare( $version, TT5_CALDAV_VERSION, '>' ) ) {
-			return false;
-		}
-
 		$package = $this->package_url( $release['assets'] ?? null, $version );
 		if ( null === $package ) {
 			return false;
@@ -63,16 +58,7 @@ final class TT5_CalDAV_Updater {
 			'package'      => $package,
 			'tested'       => '7.0',
 			'requires_php' => '8.0',
-			'autoupdate'   => true,
 		);
-	}
-
-	public function enable_auto_update( bool|null $update, object $item ): bool|null {
-		if ( self::UPDATE_URI === ( $item->id ?? '' ) ) {
-			return true;
-		}
-
-		return $update;
 	}
 
 	/**

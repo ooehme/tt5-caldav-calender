@@ -5,7 +5,7 @@ declare(strict_types=1);
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MB_IN_BYTES', 1048576 );
 define( 'MINUTE_IN_SECONDS', 60 );
-define( 'TT5_CALDAV_VERSION', '1.2.5' );
+define( 'TT5_CALDAV_VERSION', '1.2.6' );
 define( 'TT5_CALDAV_FILE', dirname( __DIR__ ) . '/tt5-caldav-calendar.php' );
 
 final class WP_Error {
@@ -94,8 +94,8 @@ final class TT5_Test_Runner {
 	public function run(): void {
 		$this->test_version_consistency();
 		$this->test_github_release_update();
+		$this->test_current_github_release_marks_updates_as_supported();
 		$this->test_github_release_requires_matching_zip();
-		$this->test_auto_update_is_limited_to_this_plugin();
 		$this->test_editor_template_defaults_are_not_outer_locked();
 		$this->test_timezone_manual_offsets();
 		$this->test_per_calendar_time_offset();
@@ -197,6 +197,46 @@ final class TT5_Test_Runner {
 				200,
 				(string) json_encode(
 					array(
+						'tag_name'   => 'v1.2.7',
+						'html_url'   => 'https://github.com/ooehme/tt5-caldav-calender/releases/tag/v1.2.7',
+						'draft'      => false,
+						'prerelease' => false,
+						'assets'     => array(
+							array(
+								'name'                 => 'tt5-caldav-calendar-1.2.7.zip',
+								'browser_download_url' => 'https://github.com/ooehme/tt5-caldav-calender/releases/download/v1.2.7/tt5-caldav-calendar-1.2.7.zip',
+							),
+						),
+					)
+				)
+			),
+		);
+
+		$update = ( new TT5_CalDAV_Updater() )->filter_update(
+			false,
+			array( 'UpdateURI' => 'https://github.com/ooehme/tt5-caldav-calender' ),
+			plugin_basename( TT5_CALDAV_FILE ),
+			array( 'de_DE' )
+		);
+
+		$this->true( is_array( $update ), 'Published GitHub release is offered as an update' );
+		$this->same( '1.2.7', $update['version'] ?? null, 'Release tag becomes update version' );
+		$this->same(
+			'https://github.com/ooehme/tt5-caldav-calender/releases/download/v1.2.7/tt5-caldav-calendar-1.2.7.zip',
+			$update['package'] ?? null,
+			'Installable release asset is selected'
+		);
+		$this->true( ! array_key_exists( 'autoupdate', $update ), 'WordPress controls the plugin auto-update setting' );
+		$this->same( 1, count( $GLOBALS['tt5_http_requests'] ), 'GitHub API is queried once' );
+		$this->same( MB_IN_BYTES, $GLOBALS['tt5_http_requests'][0]['args']['limit_response_size'], 'GitHub response size is capped' );
+	}
+
+	private function test_current_github_release_marks_updates_as_supported(): void {
+		$GLOBALS['tt5_http_responses'] = array(
+			$this->response(
+				200,
+				(string) json_encode(
+					array(
 						'tag_name'   => 'v1.2.6',
 						'html_url'   => 'https://github.com/ooehme/tt5-caldav-calender/releases/tag/v1.2.6',
 						'draft'      => false,
@@ -216,25 +256,18 @@ final class TT5_Test_Runner {
 			false,
 			array( 'UpdateURI' => 'https://github.com/ooehme/tt5-caldav-calender' ),
 			plugin_basename( TT5_CALDAV_FILE ),
-			array( 'de_DE' )
+			array()
 		);
 
-		$this->true( is_array( $update ), 'Published GitHub release is offered as an update' );
-		$this->same( '1.2.6', $update['version'] ?? null, 'Release tag becomes update version' );
-		$this->same(
-			'https://github.com/ooehme/tt5-caldav-calender/releases/download/v1.2.6/tt5-caldav-calendar-1.2.6.zip',
-			$update['package'] ?? null,
-			'Installable release asset is selected'
-		);
-		$this->same( 1, count( $GLOBALS['tt5_http_requests'] ), 'GitHub API is queried once' );
-		$this->same( MB_IN_BYTES, $GLOBALS['tt5_http_requests'][0]['args']['limit_response_size'], 'GitHub response size is capped' );
+		$this->true( is_array( $update ), 'Current release returns metadata for the WordPress no-update response' );
+		$this->same( '1.2.6', $update['version'] ?? null, 'Current release version is returned' );
 	}
 
 	private function test_github_release_requires_matching_zip(): void {
 		$GLOBALS['tt5_http_responses'] = array(
 			$this->response(
 				200,
-				'{"tag_name":"v1.2.6","html_url":"https://github.com/ooehme/tt5-caldav-calender/releases/tag/v1.2.6","assets":[]}'
+				'{"tag_name":"v1.2.7","html_url":"https://github.com/ooehme/tt5-caldav-calender/releases/tag/v1.2.7","assets":[]}'
 			),
 		);
 
@@ -246,20 +279,6 @@ final class TT5_Test_Runner {
 		);
 
 		$this->same( false, $update, 'Release without the installable ZIP is rejected' );
-	}
-
-	private function test_auto_update_is_limited_to_this_plugin(): void {
-		$updater = new TT5_CalDAV_Updater();
-		$this->same(
-			true,
-			$updater->enable_auto_update( false, (object) array( 'id' => 'https://github.com/ooehme/tt5-caldav-calender' ) ),
-			'CalDAV plugin updates run automatically'
-		);
-		$this->same(
-			false,
-			$updater->enable_auto_update( false, (object) array( 'id' => 'https://github.com/example/other-plugin' ) ),
-			'Other plugin auto-update settings are preserved'
-		);
 	}
 
 	private function test_simple_event(): void {

@@ -30,6 +30,6 @@ Weiterleitungen und automatisch ermittelte CalDAV-Endpunkte dürfen den ursprün
 
 ## Releases
 
-Installierte Versionen ab 1.2.5 erkennen neue veröffentlichte Releases über die WordPress-Updateverwaltung und installieren sie automatisch.
+Installierte Versionen ab 1.2.5 erkennen neue veröffentlichte Releases über die WordPress-Updateverwaltung. Ab 1.2.6 lassen sich automatische Aktualisierungen in der Pluginübersicht regulär aktivieren und deaktivieren.
 
 Installierbare ZIP-Dateien und SHA-256-Prüfsummen werden für Versions-Tags automatisch unter [GitHub Releases](https://github.com/ooehme/tt5-caldav-calender/releases) erzeugt.

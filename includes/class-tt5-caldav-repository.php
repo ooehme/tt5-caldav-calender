@@ -77,9 +77,10 @@ final class TT5_CalDAV_Repository {
 			wp_timezone_string()
 		);
 
-		$cache_minutes = min( 1440, max( 1, absint( $input['cache_minutes'] ?? 15 ) ) );
-		$verify_ssl    = ! empty( $input['verify_ssl'] );
-		$password      = (string) ( $input['password'] ?? '' );
+		$time_offset_minutes = max( -1440, min( 1440, (int) ( $input['time_offset_minutes'] ?? $existing['time_offset_minutes'] ?? 0 ) ) );
+		$cache_minutes       = min( 1440, max( 1, absint( $input['cache_minutes'] ?? 15 ) ) );
+		$verify_ssl          = ! empty( $input['verify_ssl'] );
+		$password            = (string) ( $input['password'] ?? '' );
 
 		if ( '' === $id ) {
 			$id = str_replace( '-', '', wp_generate_uuid4() );
@@ -95,16 +96,17 @@ final class TT5_CalDAV_Repository {
 
 		$all        = $this->all();
 		$all[ $id ] = array(
-			'id'            => $id,
-			'name'          => $name,
-			'url'           => $url,
-			'username'      => $user,
-			'password'      => $encrypted_password,
-			'timezone'      => $timezone,
-			'cache_minutes' => $cache_minutes,
-			'verify_ssl'    => $verify_ssl,
-			'created_at'    => (string) ( $existing['created_at'] ?? current_time( 'mysql', true ) ),
-			'updated_at'    => current_time( 'mysql', true ),
+			'id'                  => $id,
+			'name'                => $name,
+			'url'                 => $url,
+			'username'            => $user,
+			'password'            => $encrypted_password,
+			'timezone'            => $timezone,
+			'time_offset_minutes' => $time_offset_minutes,
+			'cache_minutes'       => $cache_minutes,
+			'verify_ssl'          => $verify_ssl,
+			'created_at'          => (string) ( $existing['created_at'] ?? current_time( 'mysql', true ) ),
+			'updated_at'          => current_time( 'mysql', true ),
 		);
 
 		update_option( self::OPTION, $all, false );

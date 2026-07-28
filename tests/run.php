@@ -85,6 +85,7 @@ final class TT5_Test_Runner {
 		$this->test_version_consistency();
 		$this->test_editor_template_defaults_are_not_outer_locked();
 		$this->test_timezone_manual_offsets();
+		$this->test_per_calendar_time_offset();
 		$this->test_simple_event();
 		$this->test_invalid_date_is_rejected();
 		$this->test_rdate_does_not_consume_count();
@@ -118,6 +119,43 @@ final class TT5_Test_Runner {
 		$this->same( 'UTC', TT5_CalDAV_Timezone::normalize( 'invalid', 'UTC' ), 'Invalid timezone fallback' );
 		$this->same( '+2', TT5_CalDAV_Timezone::choice_value( '+02:00' ), 'Positive offset choice value' );
 		$this->same( '-5.5', TT5_CalDAV_Timezone::choice_value( '-05:30' ), 'Negative offset choice value' );
+	}
+
+	private function test_per_calendar_time_offset(): void {
+		$timezone = new DateTimeZone( 'UTC' );
+		$start    = new DateTimeImmutable( '2026-07-27 00:00:00', $timezone );
+		$end      = $start->modify( '+1 day' );
+		$client   = new TT5_CalDAV_Client( new TT5_CalDAV_Repository(), new TT5_CalDAV_ICal_Parser() );
+
+		$query_range = new ReflectionMethod( $client, 'query_range' );
+		$query_range->setAccessible( true );
+		list( $query_start, $query_end ) = $query_range->invoke( $client, $start, $end, 120 );
+		$this->same( $start->modify( '-2 hours' )->getTimestamp(), $query_start->getTimestamp(), 'Positive correction widens query start' );
+		$this->same( $end->getTimestamp(), $query_end->getTimestamp(), 'Positive correction keeps query end' );
+
+		list( $query_start, $query_end ) = $query_range->invoke( $client, $start, $end, -120 );
+		$this->same( $start->getTimestamp(), $query_start->getTimestamp(), 'Negative correction keeps query start' );
+		$this->same( $end->modify( '+2 hours' )->getTimestamp(), $query_end->getTimestamp(), 'Negative correction widens query end' );
+
+		$events = array(
+			array( 'uid' => 'timed', 'start' => $start->modify( '+10 hours' )->getTimestamp(), 'end' => $start->modify( '+11 hours' )->getTimestamp(), 'all_day' => false ),
+			array( 'uid' => 'all-day', 'start' => $start->getTimestamp(), 'end' => $end->getTimestamp(), 'all_day' => true ),
+			array( 'uid' => 'incoming', 'start' => $start->modify( '-1 hour' )->getTimestamp(), 'end' => $start->modify( '-30 minutes' )->getTimestamp(), 'all_day' => false ),
+			array( 'uid' => 'outgoing', 'start' => $end->modify( '-1 hour' )->getTimestamp(), 'end' => $end->getTimestamp(), 'all_day' => false ),
+		);
+		$apply_offset = new ReflectionMethod( $client, 'apply_time_offset' );
+		$apply_offset->setAccessible( true );
+		$corrected = $apply_offset->invoke( $client, $events, 120, $start, $end );
+		$by_uid    = array();
+		foreach ( $corrected as $event ) {
+			$by_uid[ $event['uid'] ] = $event;
+		}
+
+		$this->same( 3, count( $corrected ), 'Corrected events are filtered against the requested range' );
+		$this->same( $start->modify( '+12 hours' )->getTimestamp(), $by_uid['timed']['start'], 'Timed event is shifted' );
+		$this->same( $start->getTimestamp(), $by_uid['all-day']['start'], 'All-day event is not shifted' );
+		$this->same( $start->modify( '+1 hour' )->getTimestamp(), $by_uid['incoming']['start'], 'Event shifted into range is retained' );
+		$this->true( ! isset( $by_uid['outgoing'] ), 'Event shifted out of range is removed' );
 	}
 
 	private function test_version_consistency(): void {

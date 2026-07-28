@@ -43,6 +43,7 @@ final class TT5_CalDAV_Admin {
 		$timezone_choice = TT5_CalDAV_Timezone::choice_value(
 			(string) ( $editing['timezone'] ?? wp_timezone_string() )
 		);
+		$time_offset     = (int) ( $editing['time_offset_minutes'] ?? 0 );
 		$this->notice();
 		?>
 		<div class="wrap tt5-caldav-admin">
@@ -107,7 +108,13 @@ final class TT5_CalDAV_Admin {
 							<tbody>
 							<?php foreach ( $calendars as $id => $calendar ) : ?>
 								<tr>
-									<td><strong><?php echo esc_html( (string) $calendar['name'] ); ?></strong><br><small><?php echo esc_html( (string) $calendar['timezone'] ); ?></small></td>
+									<td>
+										<strong><?php echo esc_html( (string) $calendar['name'] ); ?></strong><br>
+										<small><?php echo esc_html( (string) $calendar['timezone'] ); ?></small>
+										<?php if ( ! empty( $calendar['time_offset_minutes'] ) ) : ?>
+											<br><small><?php echo esc_html( sprintf( __( 'Zeitkorrektur: %s Stunden', 'tt5-caldav-calendar' ), $this->format_offset_hours( (int) $calendar['time_offset_minutes'], true ) ) ); ?></small>
+										<?php endif; ?>
+									</td>
 									<td><code><?php echo esc_html( (string) $calendar['url'] ); ?></code></td>
 									<td><?php echo esc_html( sprintf( _n( '%d Minute', '%d Minuten', (int) $calendar['cache_minutes'], 'tt5-caldav-calendar' ), (int) $calendar['cache_minutes'] ) ); ?></td>
 									<td class="tt5-caldav-admin__actions">
@@ -150,6 +157,7 @@ final class TT5_CalDAV_Admin {
 							<tr><th scope="row"><label for="tt5-user"><?php esc_html_e( 'Benutzername', 'tt5-caldav-calendar' ); ?></label></th><td><input class="regular-text" id="tt5-user" name="username" autocomplete="username" value="<?php echo esc_attr( (string) ( $editing['username'] ?? '' ) ); ?>"></td></tr>
 							<tr><th scope="row"><label for="tt5-password"><?php esc_html_e( 'Passwort / App-Passwort', 'tt5-caldav-calendar' ); ?></label></th><td><input class="regular-text" id="tt5-password" name="password" type="password" autocomplete="new-password"><p class="description"><?php echo $editing ? esc_html__( 'Leer lassen, um das gespeicherte Passwort beizubehalten.', 'tt5-caldav-calendar' ) : esc_html__( 'Wird verschlüsselt in der WordPress-Datenbank gespeichert.', 'tt5-caldav-calendar' ); ?></p></td></tr>
 							<tr><th scope="row"><label for="tt5-timezone"><?php esc_html_e( 'Kalender-Zeitzone', 'tt5-caldav-calendar' ); ?></label></th><td><select id="tt5-timezone" name="timezone"><?php echo wp_timezone_choice( $timezone_choice, get_user_locale() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></select></td></tr>
+							<tr><th scope="row"><label for="tt5-time-offset"><?php esc_html_e( 'Zeitkorrektur', 'tt5-caldav-calendar' ); ?></label></th><td><input id="tt5-time-offset" name="time_offset_hours" type="number" min="-24" max="24" step="0.25" value="<?php echo esc_attr( $this->format_offset_hours( $time_offset ) ); ?>"> <?php esc_html_e( 'Stunden', 'tt5-caldav-calendar' ); ?><p class="description"><?php esc_html_e( 'Verschiebt nur Termine mit Uhrzeit. Beispiel: +2 korrigiert Termine, die zwei Stunden zu früh angezeigt werden. Ganztägige Termine bleiben unverändert.', 'tt5-caldav-calendar' ); ?></p></td></tr>
 							<tr><th scope="row"><label for="tt5-cache"><?php esc_html_e( 'Cache-Dauer', 'tt5-caldav-calendar' ); ?></label></th><td><input id="tt5-cache" name="cache_minutes" type="number" min="1" max="1440" value="<?php echo esc_attr( (string) ( $editing['cache_minutes'] ?? 15 ) ); ?>"> <?php esc_html_e( 'Minuten', 'tt5-caldav-calendar' ); ?></td></tr>
 							<tr><th scope="row"><?php esc_html_e( 'TLS-Prüfung', 'tt5-caldav-calendar' ); ?></th><td><label><input name="verify_ssl" type="checkbox" value="1" <?php checked( ! isset( $editing['verify_ssl'] ) || ! empty( $editing['verify_ssl'] ) ); ?>> <?php esc_html_e( 'SSL-Zertifikat prüfen', 'tt5-caldav-calendar' ); ?></label><p class="description"><?php esc_html_e( 'Nur bei internen Testservern mit selbstsigniertem Zertifikat abschalten.', 'tt5-caldav-calendar' ); ?></p></td></tr>
 						</table>
@@ -172,15 +180,18 @@ final class TT5_CalDAV_Admin {
 	public function save(): void {
 		$this->guard();
 		check_admin_referer( 'tt5_caldav_save' );
+		$offset_value = isset( $_POST['time_offset_hours'] ) ? str_replace( ',', '.', (string) wp_unslash( $_POST['time_offset_hours'] ) ) : '0';
+		$offset_hours = is_numeric( $offset_value ) ? max( -24, min( 24, (float) $offset_value ) ) : 0;
 		$input = array(
-			'id'            => isset( $_POST['id'] ) ? wp_unslash( $_POST['id'] ) : '',
-			'name'          => isset( $_POST['name'] ) ? wp_unslash( $_POST['name'] ) : '',
-			'url'           => isset( $_POST['url'] ) ? wp_unslash( $_POST['url'] ) : '',
-			'username'      => isset( $_POST['username'] ) ? wp_unslash( $_POST['username'] ) : '',
-			'password'      => isset( $_POST['password'] ) ? wp_unslash( $_POST['password'] ) : '',
-			'timezone'      => isset( $_POST['timezone'] ) ? wp_unslash( $_POST['timezone'] ) : '',
-			'cache_minutes' => isset( $_POST['cache_minutes'] ) ? wp_unslash( $_POST['cache_minutes'] ) : 15,
-			'verify_ssl'    => isset( $_POST['verify_ssl'] ),
+			'id'                  => isset( $_POST['id'] ) ? wp_unslash( $_POST['id'] ) : '',
+			'name'                => isset( $_POST['name'] ) ? wp_unslash( $_POST['name'] ) : '',
+			'url'                 => isset( $_POST['url'] ) ? wp_unslash( $_POST['url'] ) : '',
+			'username'            => isset( $_POST['username'] ) ? wp_unslash( $_POST['username'] ) : '',
+			'password'            => isset( $_POST['password'] ) ? wp_unslash( $_POST['password'] ) : '',
+			'timezone'            => isset( $_POST['timezone'] ) ? wp_unslash( $_POST['timezone'] ) : '',
+			'time_offset_minutes' => (int) round( $offset_hours * 60 ),
+			'cache_minutes'       => isset( $_POST['cache_minutes'] ) ? wp_unslash( $_POST['cache_minutes'] ) : 15,
+			'verify_ssl'          => isset( $_POST['verify_ssl'] ),
 		);
 		$id = $this->repository->save( $input );
 		if ( is_wp_error( $id ) ) {
@@ -256,13 +267,14 @@ final class TT5_CalDAV_Admin {
 		$name  = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : (string) ( $found['name'] ?? '' );
 		$id    = $this->repository->save(
 			array(
-				'name'          => $name,
-				'url'           => (string) ( $found['url'] ?? '' ),
-				'username'      => (string) $data['username'],
-				'password'      => $password,
-				'timezone'      => wp_timezone_string(),
-				'cache_minutes' => 15,
-				'verify_ssl'    => ! empty( $data['verify_ssl'] ),
+				'name'                => $name,
+				'url'                 => (string) ( $found['url'] ?? '' ),
+				'username'            => (string) $data['username'],
+				'password'            => $password,
+				'timezone'            => wp_timezone_string(),
+				'time_offset_minutes' => 0,
+				'cache_minutes'       => 15,
+				'verify_ssl'          => ! empty( $data['verify_ssl'] ),
 			)
 		);
 		if ( is_wp_error( $id ) ) {
@@ -305,6 +317,16 @@ final class TT5_CalDAV_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Keine Berechtigung.', 'tt5-caldav-calendar' ) );
 		}
+	}
+
+	private function format_offset_hours( int $minutes, bool $signed = false ): string {
+		$formatted = rtrim( rtrim( number_format( $minutes / 60, 2, '.', '' ), '0' ), '.' );
+
+		if ( $signed && $minutes > 0 ) {
+			return '+' . $formatted;
+		}
+
+		return $formatted;
 	}
 
 	private function redirect( string $type, string $message, string $edit_id = '' ): void {

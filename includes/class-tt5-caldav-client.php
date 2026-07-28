@@ -22,8 +22,10 @@ final class TT5_CalDAV_Client {
 			return new WP_Error( 'calendar_not_found', __( 'Der ausgewählte CalDAV-Kalender existiert nicht.', 'tt5-caldav-calendar' ) );
 		}
 
-		$limit     = min( 100, max( 1, $limit ) );
-		$cache_key = 'tt5cd_' . md5( $calendar_id . '|' . $start->format( 'c' ) . '|' . $end->format( 'c' ) . '|' . $limit );
+		$limit = min( 100, max( 1, $limit ) );
+		$offset_minutes = $this->time_offset_minutes( $calendar );
+		list( $query_start, $query_end ) = $this->query_range( $start, $end, $offset_minutes );
+		$cache_key = 'tt5cd_' . md5( $calendar_id . '|' . $start->format( 'c' ) . '|' . $end->format( 'c' ) . '|' . $limit . '|' . $offset_minutes );
 		if ( ! $force ) {
 			$cached = get_transient( $cache_key );
 			if ( is_array( $cached ) ) {
@@ -31,9 +33,9 @@ final class TT5_CalDAV_Client {
 			}
 		}
 
-		$response = $this->calendar_query( $calendar, $start, $end, true );
+		$response = $this->calendar_query( $calendar, $query_start, $query_end, true );
 		if ( is_wp_error( $response ) && in_array( $response->get_error_code(), array( 'caldav_http_400', 'caldav_http_403', 'caldav_http_409', 'caldav_http_422', 'caldav_http_501' ), true ) ) {
-			$response = $this->calendar_query( $calendar, $start, $end, false );
+			$response = $this->calendar_query( $calendar, $query_start, $query_end, false );
 		}
 		if ( is_wp_error( $response ) ) {
 			return $response;
@@ -42,8 +44,9 @@ final class TT5_CalDAV_Client {
 		$timezone = $this->timezone( (string) ( $calendar['timezone'] ?? wp_timezone_string() ) );
 		$events   = array();
 		foreach ( $this->calendar_data_nodes( $response ) as $ics ) {
-			$events = array_merge( $events, $this->parser->parse( $ics, $timezone, $start, $end ) );
+			$events = array_merge( $events, $this->parser->parse( $ics, $timezone, $query_start, $query_end ) );
 		}
+		$events = $this->apply_time_offset( $events, $offset_minutes, $start, $end );
 
 		$deduped = array();
 		foreach ( $events as $event ) {
@@ -65,6 +68,56 @@ final class TT5_CalDAV_Client {
 		set_transient( $cache_key, $events, $ttl );
 		$this->repository->remember_cache_key( $cache_key, $ttl );
 		return $events;
+	}
+
+	private function time_offset_minutes( array $calendar ): int {
+		return max( -1440, min( 1440, (int) ( $calendar['time_offset_minutes'] ?? 0 ) ) );
+	}
+
+	/**
+	 * Include events which cross a range boundary after correction.
+	 *
+	 * @return array{0:DateTimeImmutable,1:DateTimeImmutable}
+	 */
+	private function query_range( DateTimeImmutable $start, DateTimeImmutable $end, int $offset_minutes ): array {
+		if ( 0 === $offset_minutes ) {
+			return array( $start, $end );
+		}
+
+		$raw_start   = $start->modify( sprintf( '%+d minutes', -$offset_minutes ) );
+		$raw_end     = $end->modify( sprintf( '%+d minutes', -$offset_minutes ) );
+		$query_start = $raw_start < $start ? $raw_start : $start;
+		$query_end   = $raw_end > $end ? $raw_end : $end;
+
+		return array( $query_start, $query_end );
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $events Parsed events.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function apply_time_offset( array $events, int $offset_minutes, DateTimeImmutable $range_start, DateTimeImmutable $range_end ): array {
+		$corrected      = array();
+		$range_start_ts = $range_start->getTimestamp();
+		$range_end_ts   = $range_end->getTimestamp();
+		$seconds        = $offset_minutes * MINUTE_IN_SECONDS;
+
+		foreach ( $events as $event ) {
+			if ( 0 !== $seconds && empty( $event['all_day'] ) ) {
+				$event['start'] = (int) ( $event['start'] ?? 0 ) + $seconds;
+				$event['end']   = (int) ( $event['end'] ?? 0 ) + $seconds;
+			}
+
+			$event_start = (int) ( $event['start'] ?? 0 );
+			$event_end   = max( $event_start + 1, (int) ( $event['end'] ?? 0 ) );
+			if ( $event_end <= $range_start_ts || $event_start >= $range_end_ts ) {
+				continue;
+			}
+
+			$corrected[] = $event;
+		}
+
+		return $corrected;
 	}
 
 	/**

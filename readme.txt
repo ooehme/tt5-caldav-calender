@@ -24,6 +24,7 @@ Funktionen:
 * Zentrale Verwaltung mehrerer CalDAV-Kalender
 * Automatische Ermittlung über Server-, Principal-, Calendar-Home- oder Kalender-URL
 * Verbindungstest und manuelles Leeren des Termincaches
+* Zeitkorrektur je Kalender für fehlerhaft verschobene Termine
 * Einstellbarer Zeitraum, Tagesversatz und maximale Terminanzahl
 * Echte CalDAV-Daten im Block-Editor mit umschaltbarer Abfrageschleifen-Vorschau
 * Frei zusammenstellbare Termin-Vorlage mit normalen WordPress-Blöcken

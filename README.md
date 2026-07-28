@@ -14,7 +14,7 @@ Installierbares WordPress-Plugin für zentrale CalDAV-Abonnements und eine frei 
 
 ## Installation
 
-Die ZIP-Datei über **Plugins → Installieren → Plugin hochladen** installieren. Danach unter **Einstellungen → CalDAV-Kalender** eine Server- oder Principal-URL prüfen, verfügbare Kalender automatisch ermitteln und abonnieren. Direkte Kalender-Collection-URLs können weiterhin manuell eingetragen werden.
+Die ZIP-Datei über **Plugins → Installieren → Plugin hochladen** installieren. Danach unter **Einstellungen → CalDAV-Kalender** eine Server- oder Principal-URL prüfen, verfügbare Kalender automatisch ermitteln und abonnieren. Direkte Kalender-Collection-URLs können weiterhin manuell eingetragen werden. Fehlerhaft verschobene Uhrzeiten lassen sich dort mit einer Zeitkorrektur je Kalender ausgleichen.
 
 ## Blockaufbau
 

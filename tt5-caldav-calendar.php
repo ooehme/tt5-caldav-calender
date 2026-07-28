@@ -3,13 +3,14 @@
  * Plugin Name:       TT5 CalDAV Kalender
  * Plugin URI:        https://oliveroehme.de/werkzeuge/tt5-caldav-calender/
  * Description:       Zeigt CalDAV-Termine in einem dynamischen, blockbasierten Kalender-Loop an und übernimmt die globalen Stile des aktiven Block-Themes.
- * Version:           1.2.4
+ * Version:           1.2.5
  * Requires at least: 6.7
  * Requires PHP:      8.0
  * Author:            Oliver Oehme
  * Author URI:        https://oliveroehme.de/
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Update URI:        https://github.com/ooehme/tt5-caldav-calender
  * Text Domain:       tt5-caldav-calendar
  * Domain Path:       /languages
  */
@@ -18,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'TT5_CALDAV_VERSION', '1.2.4' );
+define( 'TT5_CALDAV_VERSION', '1.2.5' );
 define( 'TT5_CALDAV_FILE', __FILE__ );
 define( 'TT5_CALDAV_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TT5_CALDAV_URL', plugin_dir_url( __FILE__ ) );

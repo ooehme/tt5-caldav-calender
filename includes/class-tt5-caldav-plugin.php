@@ -23,6 +23,7 @@ final class TT5_CalDAV_Plugin {
 		$this->repository = new TT5_CalDAV_Repository( new TT5_CalDAV_Crypto() );
 		$this->client     = new TT5_CalDAV_Client( $this->repository, new TT5_CalDAV_ICal_Parser() );
 
+		( new TT5_CalDAV_Updater() )->register();
 		( new TT5_CalDAV_Admin( $this->repository, $this->client ) )->register();
 		( new TT5_CalDAV_REST( $this->repository, $this->client ) )->register();
 		( new TT5_CalDAV_Blocks( $this->repository, $this->client ) )->register();
@@ -32,6 +33,7 @@ final class TT5_CalDAV_Plugin {
 	}
 
 	private function load_dependencies(): void {
+		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-updater.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-crypto.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-timezone.php';
 		require_once TT5_CALDAV_DIR . 'includes/class-tt5-caldav-repository.php';

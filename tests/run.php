@@ -5,7 +5,8 @@ declare(strict_types=1);
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'MB_IN_BYTES', 1048576 );
 define( 'MINUTE_IN_SECONDS', 60 );
-define( 'TT5_CALDAV_VERSION', '1.2.4' );
+define( 'TT5_CALDAV_VERSION', '1.2.5' );
+define( 'TT5_CALDAV_FILE', dirname( __DIR__ ) . '/tt5-caldav-calendar.php' );
 
 final class WP_Error {
 	public function __construct(
@@ -49,6 +50,10 @@ function is_wp_error( mixed $value ): bool {
 	return $value instanceof WP_Error;
 }
 
+function plugin_basename( string $file ): string {
+	return 'tt5-caldav-calendar/' . basename( $file );
+}
+
 /** @var array<int,array<string,mixed>|WP_Error> */
 $GLOBALS['tt5_http_responses'] = array();
 /** @var array<int,array{url:string,args:array<string,mixed>}> */
@@ -58,6 +63,10 @@ function wp_remote_request( string $url, array $args ): array|WP_Error {
 	$GLOBALS['tt5_http_requests'][] = array( 'url' => $url, 'args' => $args );
 	$response = array_shift( $GLOBALS['tt5_http_responses'] );
 	return $response ?? new WP_Error( 'missing_test_response', 'No response queued.' );
+}
+
+function wp_safe_remote_get( string $url, array $args ): array|WP_Error {
+	return wp_remote_request( $url, $args );
 }
 
 function wp_remote_retrieve_response_code( array $response ): int {
@@ -77,12 +86,16 @@ final class TT5_CalDAV_Repository {}
 require_once dirname( __DIR__ ) . '/includes/class-tt5-caldav-ical-parser.php';
 require_once dirname( __DIR__ ) . '/includes/class-tt5-caldav-client.php';
 require_once dirname( __DIR__ ) . '/includes/class-tt5-caldav-timezone.php';
+require_once dirname( __DIR__ ) . '/includes/class-tt5-caldav-updater.php';
 
 final class TT5_Test_Runner {
 	private int $assertions = 0;
 
 	public function run(): void {
 		$this->test_version_consistency();
+		$this->test_github_release_update();
+		$this->test_github_release_requires_matching_zip();
+		$this->test_auto_update_is_limited_to_this_plugin();
 		$this->test_editor_template_defaults_are_not_outer_locked();
 		$this->test_timezone_manual_offsets();
 		$this->test_per_calendar_time_offset();
@@ -167,6 +180,7 @@ final class TT5_Test_Runner {
 
 		$this->true( str_contains( $plugin, '* Version:           ' . $version ), 'Plugin header version' );
 		$this->true( str_contains( $plugin, "define( 'TT5_CALDAV_VERSION', '" . $version . "' );" ), 'Runtime version' );
+		$this->true( str_contains( $plugin, '* Update URI:        https://github.com/ooehme/tt5-caldav-calender' ), 'GitHub update URI' );
 		$this->true( str_contains( $readme, 'Stable tag: ' . $version ), 'Readme stable tag' );
 		$this->same( $version, $asset['version'] ?? null, 'Editor asset version' );
 
@@ -174,6 +188,78 @@ final class TT5_Test_Runner {
 			$metadata = json_decode( (string) file_get_contents( $file ), true, 512, JSON_THROW_ON_ERROR );
 			$this->same( $version, $metadata['version'] ?? null, basename( dirname( $file ) ) . ' block version' );
 		}
+	}
+
+	private function test_github_release_update(): void {
+		$GLOBALS['tt5_http_requests']  = array();
+		$GLOBALS['tt5_http_responses'] = array(
+			$this->response(
+				200,
+				(string) json_encode(
+					array(
+						'tag_name'   => 'v1.2.6',
+						'html_url'   => 'https://github.com/ooehme/tt5-caldav-calender/releases/tag/v1.2.6',
+						'draft'      => false,
+						'prerelease' => false,
+						'assets'     => array(
+							array(
+								'name'                 => 'tt5-caldav-calendar-1.2.6.zip',
+								'browser_download_url' => 'https://github.com/ooehme/tt5-caldav-calender/releases/download/v1.2.6/tt5-caldav-calendar-1.2.6.zip',
+							),
+						),
+					)
+				)
+			),
+		);
+
+		$update = ( new TT5_CalDAV_Updater() )->filter_update(
+			false,
+			array( 'UpdateURI' => 'https://github.com/ooehme/tt5-caldav-calender' ),
+			plugin_basename( TT5_CALDAV_FILE ),
+			array( 'de_DE' )
+		);
+
+		$this->true( is_array( $update ), 'Published GitHub release is offered as an update' );
+		$this->same( '1.2.6', $update['version'] ?? null, 'Release tag becomes update version' );
+		$this->same(
+			'https://github.com/ooehme/tt5-caldav-calender/releases/download/v1.2.6/tt5-caldav-calendar-1.2.6.zip',
+			$update['package'] ?? null,
+			'Installable release asset is selected'
+		);
+		$this->same( 1, count( $GLOBALS['tt5_http_requests'] ), 'GitHub API is queried once' );
+		$this->same( MB_IN_BYTES, $GLOBALS['tt5_http_requests'][0]['args']['limit_response_size'], 'GitHub response size is capped' );
+	}
+
+	private function test_github_release_requires_matching_zip(): void {
+		$GLOBALS['tt5_http_responses'] = array(
+			$this->response(
+				200,
+				'{"tag_name":"v1.2.6","html_url":"https://github.com/ooehme/tt5-caldav-calender/releases/tag/v1.2.6","assets":[]}'
+			),
+		);
+
+		$update = ( new TT5_CalDAV_Updater() )->filter_update(
+			false,
+			array( 'UpdateURI' => 'https://github.com/ooehme/tt5-caldav-calender' ),
+			plugin_basename( TT5_CALDAV_FILE ),
+			array()
+		);
+
+		$this->same( false, $update, 'Release without the installable ZIP is rejected' );
+	}
+
+	private function test_auto_update_is_limited_to_this_plugin(): void {
+		$updater = new TT5_CalDAV_Updater();
+		$this->same(
+			true,
+			$updater->enable_auto_update( false, (object) array( 'id' => 'https://github.com/ooehme/tt5-caldav-calender' ) ),
+			'CalDAV plugin updates run automatically'
+		);
+		$this->same(
+			false,
+			$updater->enable_auto_update( false, (object) array( 'id' => 'https://github.com/example/other-plugin' ) ),
+			'Other plugin auto-update settings are preserved'
+		);
 	}
 
 	private function test_simple_event(): void {

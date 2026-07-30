@@ -3,6 +3,7 @@
 [![Quality](https://github.com/ooehme/tt5-caldav-calender/actions/workflows/quality.yml/badge.svg)](https://github.com/ooehme/tt5-caldav-calender/actions/workflows/quality.yml)
 [![Release](https://img.shields.io/github/v/release/ooehme/tt5-caldav-calender)](https://github.com/ooehme/tt5-caldav-calender/releases)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
+[![WordPress](https://img.shields.io/badge/WordPress-%E2%89%A5_6.7-21759B?logo=wordpress&logoColor=white)](#anforderungen)
 
 Serverseitige CalDAV-Abonnements und frei gestaltbare, dynamische Terminblöcke für WordPress.
 
